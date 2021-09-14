@@ -23,12 +23,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Select the GPIO pin to use, BCM pin 17
-	pin := rpio.Pin(17)
-
 	// Release resources held by the go-rpio library obtained above after
 	// 'main()' exits.
 	defer rpio.Close()
+
+	// Select the GPIO pin to use, BCM pin 17
+	pin := rpio.Pin(17)
 
 	// Set the pin (BCM pin 17) to OUTPUT mode to allow writes to the pin,
 	// e.g., set the pin to LOW or HIGH
