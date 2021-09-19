@@ -1,9 +1,10 @@
-/*
- * Desription   : Reset RGB pins back to OUTPUT from PWM
- * Build-1      : gcc -L/home/pi/WiringPi -L/home/pi/WiringPi/devLib -lwiringPi -lwiringPiDev -I/home/pi/WiringPi/wiringPi -Wall -g -o resetrgb resetrgb.c
- *Build-2       : gcc -I/home/pi/WiringPi/wiringPi -Wall -g -o resetrgb resetrgb.c -L/usr/local/lib -lwiringPi -lwiringPiDev -lpthread -lm -lcrypt -lrt
- *
- */
+// Copyright (c) 2021 Richard Youngkin. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+//
+// Desription   : Reset RGB pins back to OUTPUT from PWM
+// Build: gcc -I/home/pi/WiringPi/wiringPi -Wall -g -o resetrgb resetrgb.c -L/usr/local/lib -lwiringPi -lwiringPiDev -lpthread -lm -lcrypt -lrt
+//
 
 #include <wiringPi.h>
 #include <stdio.h>

@@ -1,12 +1,13 @@
-package main
-
-// Run using 'go run dimled.go'
-//
-// The Go module system is used to choose the correct version of
-// this library. See the file '../go.mod' for details.
+// Copyright (c) 2020 Richard Youngkin. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
 //
 // This program uses a direct implementation of software PWM to vary
 // an LED's brightness.
+//
+// Run using 'go run dimled.go'
+//
+package main
 
 import (
 	"bufio"

@@ -53,4 +53,8 @@ dkms.conf
 # Project Go executables
 *.swp
 pulseled/
+ledblink/blinkingled
+ledblink/doc.go
 rgbled/rgbled
+rgbled/rgbledHardware
+rgbled/resetrgb

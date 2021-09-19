@@ -1,12 +1,11 @@
-package main
-
-// Run using 'go run blinkingled.go'
-
-// The Go version of this project uses the go-rpio library to
-// control the GPIO pins.
 //
-// The Go module system is used to choose the correct version of
-// this library. See the file '../go.mod' for details.
+// Copyright (c) 2021 Richard Youngkin. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+//
+// Run using 'go run blinkingled.go'
+//
+package main
 
 import (
 	"fmt"
