@@ -2,6 +2,11 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -95,7 +100,7 @@ func main() {
 
 	helpView.SetTitle("Help").SetBorder(true).SetTitleColor(tcell.ColorYellow)
 	codeView.SetTitle("Code").SetBorder(true)
-	msg.SetText("Messages: ")
+	msg.SetText("Messages: Use mouse to navigate screen")
 
 	pwmApp.helpView = helpView
 	pwmApp.codeView = codeView
@@ -114,7 +119,22 @@ func main() {
 	pwmApp.topics = topics
 
 	buttons := tview.NewForm().
-		AddButton("Apply", nil).
+		AddButton("Apply", func() {
+			cmd := exec.Command("sudo", "go", "run", "./apps/freqtest.go")
+
+			var out bytes.Buffer
+			cmd.Stdout = &out
+
+			err := cmd.Run()
+
+			if err != nil {
+				msg.SetText(fmt.Sprintf("Error: %s", err.Error()))
+				os.Exit(1)
+			}
+
+			msg.SetText(fmt.Sprintf("Command results:\n %s", out.String()))
+
+		}).
 		AddButton("Reset", nil).
 		AddButton("Quit", func() {
 			ui.Stop()
@@ -167,8 +187,15 @@ func newPrimitive(text string) tview.Primitive {
 
 // SetHelpTopic gets called when a help topic is chosen or changes
 func (p *PWMEx) SetHelpTopic(option string, optionIndex int) {
+	if p.pwmParms == nil {
+		return // app is still initializing
+	}
+
 	p.helpView.Clear()
 	p.codeView.Clear()
+
+	_, lang := p.langs.GetCurrentOption()
+	_, modeOpt := p.pwmParms.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
 
 	switch optionIndex {
 	case 0:
@@ -181,6 +208,9 @@ func (p *PWMEx) SetHelpTopic(option string, optionIndex int) {
 		p.helpView.Write([]byte("The Clock Divisor is blah blah blah."))
 		p.codeView.Write([]byte("...\npin.Freq(clockDivisor))\n\n..."))
 	case 3:
+		if lang == goLang && pwmModeBal == modeOpt {
+			p.helpView.Write([]byte("[red]PWM Mode 'balanced' isn't available in Go.[white]\n"))
+		}
 		p.helpView.Write([]byte("PWM Mode is blah blah blah. "))
 		p.codeView.Write([]byte("...\npin = pin.Mode(rpio.MarkSpace))\n...\n"))
 	case 4:

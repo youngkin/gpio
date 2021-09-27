@@ -40,6 +40,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -64,6 +65,7 @@ func ledInit() {
 
 func main() {
 	if err := rpio.Open(); err != nil {
+		log.Fatal(err)
 		os.Exit(1)
 	}
 	defer rpio.Close()
