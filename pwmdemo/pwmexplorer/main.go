@@ -4,7 +4,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"os/exec"
 
 	"github.com/gdamore/tcell/v2"
@@ -120,17 +119,19 @@ func main() {
 
 	buttons := tview.NewForm().
 		AddButton("Apply", func() {
-			cmd := exec.Command("sudo", "go", "run", "./apps/freqtest.go")
+			//cmd := exec.Command("ls", "-l")
+			cmd := exec.Command("sudo", "/usr/local/go/bin/go", "run", "./apps/freqtest.go")
 
 			var out bytes.Buffer
 			cmd.Stdout = &out
 
-			err := cmd.Run()
+			cmd.Run()
 
-			if err != nil {
-				msg.SetText(fmt.Sprintf("Error: %s", err.Error()))
-				os.Exit(1)
-			}
+			//  			if err != nil {
+			//  				//msg.SetText(fmt.Sprintf("Error: %s", err.Error()))
+			//  				msg.SetText(fmt.Sprintf("Error: %s", "Howdy!"))
+			//  				os.Exit(1)
+			//  			}
 
 			msg.SetText(fmt.Sprintf("Command results:\n %s", out.String()))
 

@@ -7,5 +7,3 @@ require (
 	github.com/rivo/tview v0.0.0-20210923051754-2cb20002bc4c
 	github.com/stianeikeland/go-rpio/v4 v4.5.1
 )
-
-replace github.com/rivo/tview => ../tview
