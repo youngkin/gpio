@@ -38,32 +38,47 @@
 package main
 
 import (
-	"bufio"
+	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
+	"time"
 
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
 var (
-	ledPinGreen = rpio.Pin(18)
+	ledPinGreen rpio.Pin
 	// With these numbers the effective frequency is 0.5 Hz, 2 blinks per second
-	freq  = 9600000
-	cycle = 2000
+	divisor = 9600000
+	cycle   = 2000
+	pwmPin  = 18
 )
 
 func ledInit() {
-	ledPinGreen.Mode(rpio.Pwm)
-	ledPinGreen.Freq(freq)
-	ledPinGreen.DutyCycle(uint32(cycle/4), uint32(cycle))
+	//	ledPinGreen = rpio.Pin(pwmPin)
+	//	ledPinGreen.Mode(rpio.Pwm)
+	//	ledPinGreen.Freq(divisor)
+	//	ledPinGreen.DutyCycle(uint32(cycle/4), uint32(cycle))
 }
 
 func main() {
+	divisorStr := ""
+	cycleStr := ""
+	pwmPinStr := ""
+	pulseWidthStr := ""
+	flag.StringVar(&divisorStr, "div", "9600000", "PWM clock frequency divisor")
+	flag.StringVar(&cycleStr, "cycle", "38400000", "PWM cycle/period length in microseconds")
+	flag.StringVar(&pwmPinStr, "pin", "18", "GPIO PWM pin")
+	flag.StringVar(&pulseWidthStr, "pulseWidth", "4", "PWM Pulse Width")
+
+	flag.Parse()
+
+	fmt.Printf("PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, divisorStr, cycleStr, pulseWidthStr)
+
 	if err := rpio.Open(); err != nil {
 		log.Fatal(err)
 		os.Exit(1)
@@ -72,67 +87,50 @@ func main() {
 
 	ledInit()
 
-	dutyCycle := uint32((cycle / 4))
-	fmt.Printf("\nUsing clock frequency: %d, cycle: %d, duty cycle: %d, LED Hz: %f\n",
-		freq, cycle, dutyCycle, float32(freq)/float32(cycle))
-
-	// Initialize signal handling needed to catch ctl-C
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT)
-	go interruptHandler(sigs, ledPinGreen)
-
-	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Println("Hit ctl-C to exit")
-
-	for {
-		fmt.Printf("Enter clock frequency value (4688 to 9,600,000 (hit <enter> to leave unchanged): ")
-		freqStr, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Printf("Error reading from StdIn, %s", err)
-			os.Exit(1)
-		}
-		freqStr = strings.TrimSuffix(freqStr, "\n")
-		if len(freqStr) > 0 {
-			freq, _ = strconv.Atoi(freqStr)
-		}
-		if freq < 4688 {
-			freq = 4688
-		}
-		if freq > 9600000 {
-			freq = 9600000
-		}
-
-		fmt.Printf("Enter cycle value (4 to 38,400,000 (hit <enter> to leave unchanged): ")
-		cycleStr, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Printf("Error reading from StdIn, %s", err)
-			os.Exit(1)
-		}
-		cycleStr = strings.TrimSuffix(cycleStr, "\n")
-		if len(cycleStr) > 0 {
-			cycle, _ = strconv.Atoi(cycleStr)
-		}
-		if cycle < 4 {
-			cycle = 4
-		}
-		if cycle > 38400000 {
-			cycle = 38400000
-		}
-
-		//		dutyCycle = uint32(cycle - (cycle - 9))
-		dutyCycle = uint32((cycle / 4))
-		fmt.Printf("\nUsing Clock frequency: %d, cycle: %d, duty cycle: %d, LED Hz: %f\n",
-			freq, cycle, dutyCycle, float32(freq)/float32(cycle))
-		ledPinGreen.Freq(freq)
-		ledPinGreen.DutyCycle(dutyCycle, uint32(cycle))
+	divisorStr = strings.TrimSuffix(divisorStr, "\n")
+	if len(divisorStr) > 0 {
+		divisor, _ = strconv.Atoi(divisorStr)
 	}
-}
+	if divisor < 4688 {
+		divisor = 4688
+	}
+	if divisor > 9600000 {
+		divisor = 9600000
+	}
 
-func interruptHandler(sigs chan os.Signal, pin rpio.Pin) {
-	<-sigs
-	fmt.Println("\nExiting...")
-	// Turn off the LED
-	pin.DutyCycle(0, uint32(cycle))
+	cycleStr = strings.TrimSuffix(cycleStr, "\n")
+	if len(cycleStr) > 0 {
+		cycle, _ = strconv.Atoi(cycleStr)
+	}
+	if cycle < 4 {
+		cycle = 4
+	}
+	if cycle > 38400000 {
+		cycle = 38400000
+	}
+
+	pwmPinStr = strings.TrimSuffix(pwmPinStr, "\n")
+	err := errors.New("")
+	if len(pwmPinStr) > 0 {
+		pwmPin, err = strconv.Atoi(pwmPinStr)
+		if err != nil {
+			pwmPin = 18
+			fmt.Printf("Error: err getting pwmPin: %d from pwmStr: %s", err, pwmPin, pwmPinStr)
+		}
+	}
+
+	ledPinGreen = rpio.Pin(pwmPin)
+
+	dutyCycle := uint32((cycle / 4))
+	fmt.Printf("\nUsing PWM pin: %d, Clock divisor: %d, cycle: %d, duty cycle: %d, LED Hz: %f\n",
+		ledPinGreen, divisor, cycle, dutyCycle, float32(divisor)/float32(cycle))
+	fmt.Printf("PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, divisorStr, cycleStr, pulseWidthStr)
+	ledPinGreen.Freq(divisor)
+	ledPinGreen.DutyCycle(dutyCycle, uint32(cycle))
+
+	time.Sleep(time.Second * 10)
+
+	ledPinGreen.DutyCycle(0, uint32(cycle))
 	os.Exit(0)
+	//	}
 }

@@ -117,39 +117,46 @@ func main() {
 			-1, pwmApp.SetHelpTopic)
 	pwmApp.topics = topics
 
+	parms := tview.NewForm().
+		AddDropDown("PWM Pin:", []string{"12", "18", "13", "19"}, -1, nil).
+		AddInputField("Non-PWM Pin:", "", 2, nil, nil).
+		AddInputField("Clock Divisor:", "", 10, nil, nil).
+		AddDropDown("PWM Mode:", []string{"Mark/Space", "Balanced"}, -1, pwmApp.SetPWMMode).
+		AddInputField("Range:", "", 10, nil, nil).
+		AddInputField("Pulse Width:", "", 10, nil, nil)
+
+	pwmApp.pwmParms = parms
+
 	buttons := tview.NewForm().
 		AddButton("Apply", func() {
-			//cmd := exec.Command("ls", "-l")
-			cmd := exec.Command("sudo", "/usr/local/go/bin/go", "run", "./apps/freqtest.go")
+			go func() {
+				_, pwmPin := pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
+				divisor := pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).GetText()
+				cycle := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
+				pulseWidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
+				cmd := exec.Command("sudo", buildCommand(pwmPin, divisor, cycle, pulseWidth)...)
+				msg.SetText(fmt.Sprintf("PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s", pwmPin, divisor, cycle, pulseWidth))
+				msg.SetText(fmt.Sprintf("Command line: %v", buildCommand(pwmPin, divisor, cycle, pulseWidth)))
 
-			var out bytes.Buffer
-			cmd.Stdout = &out
+				var out bytes.Buffer
+				cmd.Stdout = &out
 
-			cmd.Run()
+				cmd.Run()
 
-			//  			if err != nil {
-			//  				//msg.SetText(fmt.Sprintf("Error: %s", err.Error()))
-			//  				msg.SetText(fmt.Sprintf("Error: %s", "Howdy!"))
-			//  				os.Exit(1)
-			//  			}
+				//  			if err != nil {
+				//  				//msg.SetText(fmt.Sprintf("Error: %s", err.Error()))
+				//  				msg.SetText(fmt.Sprintf("Error: %s", "Howdy!"))
+				//  				os.Exit(1)
+				//  			}
 
-			msg.SetText(fmt.Sprintf("Command results:\n %s", out.String()))
+				//			msg.SetText(fmt.Sprintf("Command results:\n %s", out.String()))
 
+			}()
 		}).
 		AddButton("Reset", nil).
 		AddButton("Quit", func() {
 			ui.Stop()
 		})
-
-	parms := tview.NewForm().
-		AddDropDown("PWM Pin:", []string{"12", "13", "18", "19"}, -1, nil).
-		AddInputField("Non-PWM Pin:", "", 2, nil, nil).
-		AddInputField("Clock Divisor:", "", 8, nil, nil).
-		AddDropDown("PWM Mode:", []string{"Mark/Space", "Balanced"}, -1, pwmApp.SetPWMMode).
-		AddInputField("Range:", "", 6, nil, nil).
-		AddInputField("Pulse Width:", "", 6, nil, nil)
-
-	pwmApp.pwmParms = parms
 
 	// Main Grid
 	grid := tview.NewGrid().
@@ -223,4 +230,10 @@ func (p *PWMEx) SetHelpTopic(option string, optionIndex int) {
 	}
 
 	p.msg.Clear()
+}
+
+func buildCommand(pwmPin, divisor, cycle, pulseWidth string) []string {
+	return []string{"/usr/local/go/bin/go", "run", "./apps/freqtest.go",
+		fmt.Sprintf("-pin=%s", pwmPin), fmt.Sprintf("-div=%s", divisor),
+		fmt.Sprintf("-cycle=%s", cycle), fmt.Sprintf("-pulseWidth=%s", pulseWidth)}
 }
