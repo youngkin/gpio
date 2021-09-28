@@ -1,10 +1,12 @@
 // Demo code for the Grid primitive.
+// run with sudo /usr/local/go/bin/go run ./apps/freqtest.go -pin=18 -div=9600000 -cycle=2400000 -pulseWidth=4
 package main
 
 import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"syscall"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -127,30 +129,56 @@ func main() {
 
 	pwmApp.pwmParms = parms
 
+	var stopTest chan interface{}
+	running := false
 	buttons := tview.NewForm().
-		AddButton("Apply", func() {
+		AddButton("Start", func() {
 			go func() {
+				if running == true {
+					msg.SetText("There is a running test. Stop that test and try again")
+					return
+				}
+
+				stopTest = make(chan interface{})
+
 				_, pwmPin := pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
 				divisor := pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).GetText()
 				cycle := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
 				pulseWidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
-				cmd := exec.Command("sudo", buildCommand(pwmPin, divisor, cycle, pulseWidth)...)
-				msg.SetText(fmt.Sprintf("PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s", pwmPin, divisor, cycle, pulseWidth))
+
 				msg.SetText(fmt.Sprintf("Command line: %v", buildCommand(pwmPin, divisor, cycle, pulseWidth)))
 
 				var out bytes.Buffer
+				cmd := exec.Command("sudo", buildCommand(pwmPin, divisor, cycle, pulseWidth)...)
+				cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 				cmd.Stdout = &out
 
-				cmd.Run()
+				if err := cmd.Start(); err != nil {
+					msg.SetText(fmt.Sprintf("Error starting test: %s", err))
+					running = false
+					return
+				}
+				running = true
 
-				//  			if err != nil {
-				//  				//msg.SetText(fmt.Sprintf("Error: %s", err.Error()))
-				//  				msg.SetText(fmt.Sprintf("Error: %s", "Howdy!"))
-				//  				os.Exit(1)
-				//  			}
-
-				//			msg.SetText(fmt.Sprintf("Command results:\n %s", out.String()))
-
+				<-stopTest
+				syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+				running = false
+				//				if err := cmd.Process.Signal(os.Kill); err != nil {
+				//					msg.SetText(fmt.Sprintf("Error stopping test: %s", err))
+				//					running = false
+				//					return
+				//				}
+				msg.SetText("Test stopped")
+			}()
+		}).
+		AddButton("Stop", func() {
+			go func() {
+				if running {
+					close(stopTest)
+					running = false
+					return
+				}
+				msg.SetText("No tests running")
 			}()
 		}).
 		AddButton("Reset", nil).

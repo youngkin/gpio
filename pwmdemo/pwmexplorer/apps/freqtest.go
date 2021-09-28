@@ -43,27 +43,21 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
-	"strings"
+	"syscall"
 	"time"
 
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
 var (
-	ledPinGreen rpio.Pin
+	ledPin rpio.Pin
 	// With these numbers the effective frequency is 0.5 Hz, 2 blinks per second
 	divisor = 9600000
 	cycle   = 2000
 	pwmPin  = 18
 )
-
-func ledInit() {
-	//	ledPinGreen = rpio.Pin(pwmPin)
-	//	ledPinGreen.Mode(rpio.Pwm)
-	//	ledPinGreen.Freq(divisor)
-	//	ledPinGreen.DutyCycle(uint32(cycle/4), uint32(cycle))
-}
 
 func main() {
 	divisorStr := ""
@@ -71,13 +65,14 @@ func main() {
 	pwmPinStr := ""
 	pulseWidthStr := ""
 	flag.StringVar(&divisorStr, "div", "9600000", "PWM clock frequency divisor")
-	flag.StringVar(&cycleStr, "cycle", "38400000", "PWM cycle/period length in microseconds")
+	flag.StringVar(&cycleStr, "cycle", "2400000", "PWM cycle/period length in microseconds")
 	flag.StringVar(&pwmPinStr, "pin", "18", "GPIO PWM pin")
 	flag.StringVar(&pulseWidthStr, "pulseWidth", "4", "PWM Pulse Width")
-
 	flag.Parse()
+	fmt.Printf("Input: PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, divisorStr, cycleStr, pulseWidthStr)
 
-	fmt.Printf("PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, divisorStr, cycleStr, pulseWidthStr)
+	divisor, cycle, pin, pulse := getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr)
+	fmt.Printf("Using: PWM pin: %d, divisor: %d, cycle: %d, pulse width: %d\n", pin, divisor, cycle, pulse)
 
 	if err := rpio.Open(); err != nil {
 		log.Fatal(err)
@@ -85,23 +80,39 @@ func main() {
 	}
 	defer rpio.Close()
 
-	ledInit()
+	ledPin.Mode(rpio.Pwm)
+	ledPin = rpio.Pin(pin)
 
-	divisorStr = strings.TrimSuffix(divisorStr, "\n")
-	if len(divisorStr) > 0 {
-		divisor, _ = strconv.Atoi(divisorStr)
-	}
-	if divisor < 4688 {
-		divisor = 4688
-	}
-	if divisor > 9600000 {
-		divisor = 9600000
+	// Initialize signal handling needed to catch ctl-C
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
+	go interruptHandler(sigs, ledPin)
+
+	dutyCycle := uint32((cycle / pulse))
+	ledPin.Freq(divisor)
+	ledPin.DutyCycle(dutyCycle, uint32(cycle))
+
+	for {
+		//time.Sleep(time.Second * 10)
+		time.Sleep(time.Millisecond * 20)
 	}
 
-	cycleStr = strings.TrimSuffix(cycleStr, "\n")
-	if len(cycleStr) > 0 {
-		cycle, _ = strconv.Atoi(cycleStr)
+	ledPin.DutyCycle(0, uint32(cycle))
+	os.Exit(0)
+	//	}
+}
+
+func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle, pin, pulse int) {
+	div, _ = strconv.Atoi(divisorStr)
+	if div < 4688 {
+		div = 4688
 	}
+	if div > 9600000 {
+		div = 9600000
+	}
+
+	cycle, _ = strconv.Atoi(cycleStr)
+
 	if cycle < 4 {
 		cycle = 4
 	}
@@ -109,28 +120,28 @@ func main() {
 		cycle = 38400000
 	}
 
-	pwmPinStr = strings.TrimSuffix(pwmPinStr, "\n")
 	err := errors.New("")
-	if len(pwmPinStr) > 0 {
-		pwmPin, err = strconv.Atoi(pwmPinStr)
-		if err != nil {
-			pwmPin = 18
-			fmt.Printf("Error: err getting pwmPin: %d from pwmStr: %s", err, pwmPin, pwmPinStr)
-		}
+
+	pin, err = strconv.Atoi(pwmPinStr)
+	if err != nil {
+		pin = 18
+		fmt.Printf("Error: err getting pwmPin: %d from pwmStr: %s", err, pin, pwmPinStr)
 	}
 
-	ledPinGreen = rpio.Pin(pwmPin)
+	pulse, err = strconv.Atoi(pulseWidthStr)
+	if err != nil {
+		pulse = 4
+		fmt.Printf("Error: err getting pulse: %d from pulseWidthStr: %s", err, pulse, pulseWidthStr)
+	}
 
-	dutyCycle := uint32((cycle / 4))
-	fmt.Printf("\nUsing PWM pin: %d, Clock divisor: %d, cycle: %d, duty cycle: %d, LED Hz: %f\n",
-		ledPinGreen, divisor, cycle, dutyCycle, float32(divisor)/float32(cycle))
-	fmt.Printf("PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, divisorStr, cycleStr, pulseWidthStr)
-	ledPinGreen.Freq(divisor)
-	ledPinGreen.DutyCycle(dutyCycle, uint32(cycle))
+	return div, cycle, pin, pulse
+}
 
-	time.Sleep(time.Second * 10)
-
-	ledPinGreen.DutyCycle(0, uint32(cycle))
+func interruptHandler(sigs chan os.Signal, pin rpio.Pin) {
+	<-sigs
+	fmt.Println("\nExiting...")
+	// Turn off the LED
+	pin.DutyCycle(0, uint32(cycle))
 	os.Exit(0)
-	//	}
+
 }
