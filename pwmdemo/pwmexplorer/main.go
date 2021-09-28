@@ -127,30 +127,37 @@ func main() {
 
 	pwmApp.pwmParms = parms
 
+	stopTest := make(chan interface{})
 	buttons := tview.NewForm().
-		AddButton("Apply", func() {
+		AddButton("Start", func() {
 			go func() {
 				_, pwmPin := pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
 				divisor := pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).GetText()
 				cycle := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
 				pulseWidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
-				cmd := exec.Command("sudo", buildCommand(pwmPin, divisor, cycle, pulseWidth)...)
 				msg.SetText(fmt.Sprintf("PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s", pwmPin, divisor, cycle, pulseWidth))
 				msg.SetText(fmt.Sprintf("Command line: %v", buildCommand(pwmPin, divisor, cycle, pulseWidth)))
 
 				var out bytes.Buffer
+				cmd := exec.Command("sudo", buildCommand(pwmPin, divisor, cycle, pulseWidth)...)
 				cmd.Stdout = &out
 
-				cmd.Run()
+				if err := cmd.Start(); err != nil {
+					msg.SetText(fmt.Sprintf("Error starting test: %s", err))
+					return
+				}
 
-				//  			if err != nil {
-				//  				//msg.SetText(fmt.Sprintf("Error: %s", err.Error()))
-				//  				msg.SetText(fmt.Sprintf("Error: %s", "Howdy!"))
-				//  				os.Exit(1)
-				//  			}
-
-				//			msg.SetText(fmt.Sprintf("Command results:\n %s", out.String()))
-
+				<-stopTest
+				if err := cmd.Process.Kill(); err != nil {
+					msg.SetText(fmt.Sprintf("Error stopping test: %s", err))
+					return
+				}
+				msg.SetText("Test stopped")
+			}()
+		}).
+		AddButton("Stop", func() {
+			go func() {
+				close(stopTest)
 			}()
 		}).
 		AddButton("Reset", nil).
