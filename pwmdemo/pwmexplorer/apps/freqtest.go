@@ -3,6 +3,8 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 //
+// run with sudo /usr/local/go/bin/go run ./apps/freqtest.go -pin=18 -div=9600000 -cycle=2400000 -pulseWidth=4
+//
 // This program visually demonstrates the the association between rpio.SetFreq() and
 // rpio.SetDutyCycle(). rpio.SetFreq() sets the PWM clock frequency. rpio.SetDutyCycle()
 // specifies how long a pin is in HIGH state (dutyLen) vs. the length of the containing
@@ -38,7 +40,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -52,11 +53,8 @@ import (
 )
 
 var (
-	ledPin rpio.Pin
-	// With these numbers the effective frequency is 0.5 Hz, 2 blinks per second
-	divisor = 9600000
-	cycle   = 2000
-	pwmPin  = 18
+	ledPin                 rpio.Pin
+	divisor, cycle, pwmPin int
 )
 
 func main() {
@@ -93,7 +91,6 @@ func main() {
 	ledPin.DutyCycle(dutyCycle, uint32(cycle))
 
 	for {
-		//time.Sleep(time.Second * 10)
 		time.Sleep(time.Millisecond * 20)
 	}
 
@@ -103,7 +100,12 @@ func main() {
 }
 
 func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle, pin, pulse int) {
-	div, _ = strconv.Atoi(divisorStr)
+	div, err := strconv.Atoi(divisorStr)
+	if err != nil {
+		pin = 18
+		fmt.Printf("Error: err getting divisor: %d from divisorStr: %s", err, divisor, divisorStr)
+		divisor = 0
+	}
 	if div < 4688 {
 		div = 4688
 	}
@@ -111,16 +113,18 @@ func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle
 		div = 9600000
 	}
 
-	cycle, _ = strconv.Atoi(cycleStr)
-
+	cycle, err = strconv.Atoi(cycleStr)
+	if err != nil {
+		pin = 18
+		fmt.Printf("Error: err getting cycle: %d from cycleStr: %s", err, cycle, cycleStr)
+		cycle = 0
+	}
 	if cycle < 4 {
 		cycle = 4
 	}
 	if cycle > 38400000 {
 		cycle = 38400000
 	}
-
-	err := errors.New("")
 
 	pin, err = strconv.Atoi(pwmPinStr)
 	if err != nil {
