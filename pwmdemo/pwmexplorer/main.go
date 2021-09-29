@@ -161,13 +161,16 @@ func main() {
 				running = true
 
 				<-stopTest
-				syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-				running = false
-				//				if err := cmd.Process.Signal(os.Kill); err != nil {
-				//					msg.SetText(fmt.Sprintf("Error stopping test: %s", err))
-				//					running = false
+				// Not sure why sending a signal to the process via cmd.Process.Signal() doesn't stop
+				// the process but using syscall.Kill() to send the same signal works.
+				//				if err := cmd.Process.Signal(syscall.SIGINT); err != nil {
+				//					msg.SetText(fmt.Sprintf("Error sending interrupt signal: %s", err))
 				//					return
 				//				}
+				if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGINT); err != nil {
+					msg.SetText(fmt.Sprintf("Error sending interrupt signal: %s", err))
+				}
+				running = false
 				msg.SetText("Test stopped")
 			}()
 		}).
