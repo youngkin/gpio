@@ -52,11 +52,6 @@ import (
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
-var (
-	ledPin                 rpio.Pin
-	divisor, cycle, pwmPin int
-)
-
 func main() {
 	divisorStr := ""
 	cycleStr := ""
@@ -78,17 +73,16 @@ func main() {
 	}
 	defer rpio.Close()
 
+	ledPin := rpio.Pin(pin)
 	ledPin.Mode(rpio.Pwm)
-	ledPin = rpio.Pin(pin)
+	ledPin.Freq(divisor)
+	dutyCycle := uint32((cycle / pulse))
+	ledPin.DutyCycle(dutyCycle, uint32(cycle))
 
 	// Initialize signal handling needed to catch ctl-C
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
-	go interruptHandler(sigs, ledPin)
-
-	dutyCycle := uint32((cycle / pulse))
-	ledPin.Freq(divisor)
-	ledPin.DutyCycle(dutyCycle, uint32(cycle))
+	go interruptHandler(sigs, cycle, ledPin)
 
 	for {
 		time.Sleep(time.Millisecond * 20)
@@ -96,15 +90,13 @@ func main() {
 
 	ledPin.DutyCycle(0, uint32(cycle))
 	os.Exit(0)
-	//	}
 }
 
 func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle, pin, pulse int) {
 	div, err := strconv.Atoi(divisorStr)
 	if err != nil {
-		pin = 18
-		fmt.Printf("Error: err getting divisor: %d from divisorStr: %s", err, divisor, divisorStr)
-		divisor = 0
+		fmt.Printf("Error: err getting divisor: %d from divisorStr: %s", err, div, divisorStr)
+		div = 0
 	}
 	if div < 4688 {
 		div = 4688
@@ -115,7 +107,6 @@ func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle
 
 	cycle, err = strconv.Atoi(cycleStr)
 	if err != nil {
-		pin = 18
 		fmt.Printf("Error: err getting cycle: %d from cycleStr: %s", err, cycle, cycleStr)
 		cycle = 0
 	}
@@ -141,11 +132,14 @@ func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle
 	return div, cycle, pin, pulse
 }
 
-func interruptHandler(sigs chan os.Signal, pin rpio.Pin) {
+func interruptHandler(sigs chan os.Signal, cycle int, pin rpio.Pin) {
 	<-sigs
 	fmt.Println("\nExiting...")
 	// Turn off the LED
+	fmt.Printf("cycle: %d\n", cycle)
 	pin.DutyCycle(0, uint32(cycle))
+	pin.Mode(rpio.Output)
+	pin.Mode(rpio.Pwm)
 	os.Exit(0)
 
 }
