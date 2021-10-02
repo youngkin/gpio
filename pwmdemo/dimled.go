@@ -35,7 +35,7 @@ func main() {
 
 	// Set the pin (BCM pin 17) to OUTPUT mode to allow writes to the pin,
 	// e.g., to set the pin to LOW or HIGH
-	pin := rpio.Pin(17)
+	pin := rpio.Pin(18)
 	pin.Output()
 	pin.Low()
 

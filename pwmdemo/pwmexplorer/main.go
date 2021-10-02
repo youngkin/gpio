@@ -92,11 +92,6 @@ func (p *PWMEx) SetPWMMode(option string, optionIdx int) {
 		p.msg.SetText("Warning: PWM mode 'Mark/Space' is not available in 'Go'.")
 		return
 	}
-
-	//	p.msg.Clear()
-	//	if helpItem == pwmModeHelp {
-	//		p.SetHelpTopic(helpItem, helpIdx)
-	//	}
 }
 
 // SetLanguage is called when a language option is selected or changed
@@ -122,6 +117,7 @@ func (p *PWMEx) SetLanguage(lang string, langIdx int) {
 func main() {
 	msg := tview.NewTextView().SetTextColor(tcell.ColorRed)
 	langDropDown := tview.NewDropDown().SetLabel("Language:").AddOption(cLang, nil).AddOption(goLang, nil)
+	langDropDown.SetCurrentOption(1)
 	language := tview.NewForm().AddFormItem(langDropDown)
 
 	pwmApp := PWMEx{msg: msg, langs: langDropDown}
@@ -154,64 +150,6 @@ func main() {
 	//	running := false
 
 	buttons := getButtonForm(ui, &pwmApp, msg)
-	//buttons := getButtonForm(ui, pwmApp, stopTest, msg, running)
-	//	buttons := tview.NewForm().
-	//		AddButton("Start", func() {
-	//			go func() {
-	//				if running == true {
-	//					msg.SetText("There is a running test. Stop that test and try again")
-	//					return
-	//				}
-	//
-	//				stopTest = make(chan interface{})
-	//
-	//				_, pwmPin := pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
-	//				divisor := pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).GetText()
-	//				cycle := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
-	//				pulseWidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
-	//
-	//				msg.SetText(fmt.Sprintf("Command line: %v", buildCommand(pwmPin, divisor, cycle, pulseWidth)))
-	//
-	//				var out bytes.Buffer
-	//				cmd := exec.Command("sudo", buildCommand(pwmPin, divisor, cycle, pulseWidth)...)
-	//				cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	//				cmd.Stdout = &out
-	//
-	//				if err := cmd.Start(); err != nil {
-	//					msg.SetText(fmt.Sprintf("Error starting test: %s", err))
-	//					running = false
-	//					return
-	//				}
-	//				running = true
-	//
-	//				<-stopTest
-	//				// Not sure why sending a signal to the process via cmd.Process.Signal() doesn't stop
-	//				// the process but using syscall.Kill() to send the same signal works.
-	//				//				if err := cmd.Process.Signal(syscall.SIGINT); err != nil {
-	//				//					msg.SetText(fmt.Sprintf("Error sending interrupt signal: %s", err))
-	//				//					return
-	//				//				}
-	//				if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGINT); err != nil {
-	//					msg.SetText(fmt.Sprintf("Error sending interrupt signal: %s", err))
-	//				}
-	//				running = false
-	//				msg.SetText("Test stopped")
-	//			}()
-	//		}).
-	//		AddButton("Stop", func() {
-	//			go func() {
-	//				if running {
-	//					close(stopTest)
-	//					running = false
-	//					return
-	//				}
-	//				msg.SetText("No tests running")
-	//			}()
-	//		}).
-	//		AddButton("Reset", nil).
-	//		AddButton("Quit", func() {
-	//			ui.Stop()
-	//		})
 
 	// Main Grid
 	grid := tview.NewGrid().
@@ -248,10 +186,12 @@ func newPrimitive(text string) tview.Primitive {
 		SetText(text)
 }
 
-func buildCommand(pwmPin, divisor, cycle, pulseWidth string) []string {
+func buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType string) []string {
 	return []string{"/usr/local/go/bin/go", "run", "./apps/freqtest.go",
-		fmt.Sprintf("-pin=%s", pwmPin), fmt.Sprintf("-div=%s", divisor),
-		fmt.Sprintf("-cycle=%s", cycle), fmt.Sprintf("-pulseWidth=%s", pulseWidth)}
+		fmt.Sprintf("-pin=%s", pin), fmt.Sprintf("-div=%s", divisor),
+		fmt.Sprintf("-cycle=%s", cycle), fmt.Sprintf("-pulseWidth=%s", pulseWidth),
+		fmt.Sprintf("-pwmType=%s", pwmType),
+	}
 }
 
 func getHelpView(ui *tview.Application) *tview.TextView {
@@ -286,7 +226,8 @@ func getParmsForm(pwmApp *PWMEx) *tview.Form {
 		AddInputField("Clock Divisor:", "", 10, nil, nil).
 		AddDropDown("PWM Mode:", []string{pwmModeMS, "Balanced"}, -1, pwmApp.SetPWMMode).
 		AddInputField("Range:", "", 10, nil, nil).
-		AddInputField("Pulse Width:", "", 10, nil, nil)
+		AddInputField("Pulse Width:", "", 10, nil, nil).
+		AddDropDown("PWM Type:", []string{"hardware", "software"}, 0, nil)
 }
 
 func getButtonForm(ui *tview.Application, pwmApp *PWMEx, msg *tview.TextView) *tview.Form {
@@ -303,14 +244,26 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMEx, msg *tview.TextView) *t
 				stopTest = make(chan interface{})
 
 				_, pwmPin := pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
+				nonPwmPin := pwmApp.pwmParms.GetFormItem(1).(*tview.InputField).GetText()
 				divisor := pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).GetText()
+				//_, pwmMode := pwmApp.pwmParms.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
 				cycle := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
 				pulseWidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
+				_, pwmType := pwmApp.pwmParms.GetFormItem(6).(*tview.DropDown).GetCurrentOption()
 
-				msg.SetText(fmt.Sprintf("Command line: %v", buildCommand(pwmPin, divisor, cycle, pulseWidth)))
+				// if nonPwmPin is populated use it
+				pin := ""
+				pinWarningText := ""
+				if nonPwmPin != "" {
+					pin = nonPwmPin
+					pinWarningText = "Note: non-PWM pin being used"
+				} else {
+					pin = pwmPin
+				}
+				msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType), pinWarningText))
 
 				var out bytes.Buffer
-				cmd := exec.Command("sudo", buildCommand(pwmPin, divisor, cycle, pulseWidth)...)
+				cmd := exec.Command("sudo", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType)...)
 				cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 				cmd.Stdout = &out
 
@@ -345,7 +298,15 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMEx, msg *tview.TextView) *t
 				msg.SetText("No tests running")
 			}()
 		}).
-		AddButton("Reset", nil).
+		AddButton("Reset", func() {
+			pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).SetCurrentOption(-1)
+			pwmApp.pwmParms.GetFormItem(1).(*tview.InputField).SetText("")
+			pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).SetText("")
+			pwmApp.pwmParms.GetFormItem(3).(*tview.DropDown).SetCurrentOption(-1)
+			pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).SetText("")
+			pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).SetText("")
+			pwmApp.pwmParms.GetFormItem(6).(*tview.DropDown).SetCurrentOption(-1)
+		}).
 		AddButton("Quit", func() {
 			ui.Stop()
 		})

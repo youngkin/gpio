@@ -53,43 +53,31 @@ import (
 )
 
 func main() {
+	pwmType := ""
 	divisorStr := ""
 	cycleStr := ""
 	pwmPinStr := ""
 	pulseWidthStr := ""
+	flag.StringVar(&pwmType, "pwmType", "hardware", "defines whether software or hardware PWM should be used")
 	flag.StringVar(&divisorStr, "div", "9600000", "PWM clock frequency divisor")
 	flag.StringVar(&cycleStr, "cycle", "2400000", "PWM cycle/period length in microseconds")
 	flag.StringVar(&pwmPinStr, "pin", "18", "GPIO PWM pin")
 	flag.StringVar(&pulseWidthStr, "pulseWidth", "4", "PWM Pulse Width")
 	flag.Parse()
-	fmt.Printf("Input: PWM pin: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, divisorStr, cycleStr, pulseWidthStr)
+	fmt.Printf("Input: PWM pin: %s, PWM Type: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, pwmType, divisorStr, cycleStr, pulseWidthStr)
 
 	divisor, cycle, pin, pulse := getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr)
-	fmt.Printf("Using: PWM pin: %d, divisor: %d, cycle: %d, pulse width: %d\n", pin, divisor, cycle, pulse)
+	fmt.Printf("Using: PWM pin: %s, PWM Type: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, pwmType, divisorStr, cycleStr, pulseWidthStr)
 
 	if err := rpio.Open(); err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
-	defer rpio.Close()
-
-	ledPin := rpio.Pin(pin)
-	ledPin.Mode(rpio.Pwm)
-	ledPin.Freq(divisor)
-	dutyCycle := uint32((cycle / pulse))
-	ledPin.DutyCycle(dutyCycle, uint32(cycle))
-
-	// Initialize signal handling needed to catch ctl-C
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
-	go interruptHandler(sigs, cycle, ledPin)
-
-	for {
-		time.Sleep(time.Millisecond * 20)
+	if pwmType == "software" {
+		runSoftwarePWM(pin, cycle, pulse)
 	}
 
-	ledPin.DutyCycle(0, uint32(cycle))
-	os.Exit(0)
+	runHardwarePwm(pin, divisor, cycle, pulse)
 }
 
 func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle, pin, pulse int) {
@@ -132,14 +120,81 @@ func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle
 	return div, cycle, pin, pulse
 }
 
-func interruptHandler(sigs chan os.Signal, cycle int, pin rpio.Pin) {
+func runHardwarePwm(gpin, divisor, cycle, pulse int) {
+	pin := rpio.Pin(gpin)
+	pin.Mode(rpio.Pwm)
+	pin.Freq(divisor)
+	dutyCycle := uint32((cycle / pulse))
+	pin.DutyCycle(dutyCycle, uint32(cycle))
+
+	// Initialize signal handling needed to catch ctl-C
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
+	go hardwareInterruptHandler(sigs, cycle, pin)
+
+	for {
+		time.Sleep(time.Millisecond * 20)
+	}
+}
+
+func runSoftwarePWM(gpin, cycle, duty int) {
+	pin := rpio.Pin(gpin)
+	on := rpio.Low
+	off := rpio.High
+	if gpin == 18 || gpin == 12 || gpin == 13 || gpin == 19 {
+		on = rpio.High
+		off = rpio.Low
+	}
+	for {
+
+		// Initialize signal handling needed to catch ctl-C
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
+		go softwareInterruptHandler(sigs, cycle, pin, off)
+
+		// Set LED to a dimmer brightVal. Notice how the LED will flicker due to
+		// lack of uniformity in the OS scheduler and the 'time.Sleep()' function.
+		// The amount of actual flickering will depend on the computing power of the
+		// hardware and the CPU utilization.
+		//
+		// The ratio of time the pin is set to LOW vs. HIGH determines how bright the LED
+		// will be. Lower ratios will result in a dimmer LED. Lower ratios (e.g., 10) will
+		// also exhibit more flickering vs. higher values (e.g., 10000).
+		for {
+			rpio.WritePin(pin, on)
+			time.Sleep(time.Microsecond * time.Duration(duty))
+			rpio.WritePin(pin, off)
+			// brightVal is the duty cycle. 10ms is the range (.e., from the max value of brightVal
+			// of 10,000 and base units of microseconds). To have the total duration
+			// equal the range this sleep needs to subtract the duty cycle from the range.
+			time.Sleep(time.Millisecond*10 - time.Microsecond*time.Duration(duty))
+
+		}
+		// turn LED off
+		rpio.WritePin(pin, off)
+		time.Sleep(time.Second)
+
+	}
+}
+
+func hardwareInterruptHandler(sigs chan os.Signal, cycle int, pin rpio.Pin) {
 	<-sigs
 	fmt.Println("\nExiting...")
 	// Turn off the LED
-	fmt.Printf("cycle: %d\n", cycle)
 	pin.DutyCycle(0, uint32(cycle))
 	pin.Mode(rpio.Output)
 	pin.Mode(rpio.Pwm)
+	rpio.Close()
+	os.Exit(0)
+
+}
+
+func softwareInterruptHandler(sigs chan os.Signal, cycle int, pin rpio.Pin, off rpio.State) {
+	<-sigs
+	fmt.Println("\nExiting...")
+	// Turn off the LED
+	rpio.WritePin(pin, off)
+	rpio.Close()
 	os.Exit(0)
 
 }
