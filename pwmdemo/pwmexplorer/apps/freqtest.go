@@ -12,7 +12,7 @@
 // of 5 with a cycleLen of 10 would have a duty cycle of 0.5, or 50%.
 //
 // The relationship demonstrated by this program is more specifically the relationship
-// between the clock frequency and the cycle length (cycleLen in SetDutyCycle()). This
+// between the PWM clock frequency and the cycle length (cycleLen in SetDutyCycle()). This
 // ratio sets the frequency of the LED.
 //
 // Given a clock frequency of 100,000 and a cycle length of 25,000, the LED Hz is 4,
@@ -35,7 +35,9 @@
 // BCM pin 18 is used as it is a hardware PWM pin. Any hardware PWM pin can be used if desired.
 // The other hardware PWM pins are BCM pins 12, 13, and 19.
 //
-// Run using 'sudo /usr/local/go/bin/go run freqtest.go'
+// Run example:
+// sudo /usr/local/go/bin/go run apps/freqtest.go -pwmType="hardware" -cycle="10000" -pulseWidth="25" -pin="18"
+//
 
 package main
 

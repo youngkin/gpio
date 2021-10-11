@@ -131,7 +131,7 @@ func main() {
 
 	helpView.SetTitle("Help").SetBorder(true).SetTitleColor(tcell.ColorYellow)
 	codeView.SetTitle("Code").SetBorder(true)
-	msg.SetText("Messages: Use mouse to navigate screen")
+	msg.SetText("Messages: Use mouse to navigate screen.\nNOTE: For 'C' use pin numbers 26,1, 23, 24. For 'Go' use 12, 18, 13, 19.")
 
 	pwmApp.helpView = helpView
 	pwmApp.codeView = codeView
@@ -194,6 +194,14 @@ func buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType string) []string {
 	}
 }
 
+func buildCCommand(pin, divisor, cycle, pulseWidth, pwmType, pwmMode string) []string {
+	return []string{"./apps/freqtest",
+		fmt.Sprintf("--pin=%s", pin), fmt.Sprintf("--divisor=%s", divisor),
+		fmt.Sprintf("--cycle=%s", cycle), fmt.Sprintf("--pulseWidth=%s", pulseWidth),
+		fmt.Sprintf("--type=%s", pwmType), fmt.Sprintf("--mode=%s", pwmMode),
+	}
+}
+
 func getHelpView(ui *tview.Application) *tview.TextView {
 	return tview.NewTextView().
 		SetDynamicColors(true).
@@ -221,7 +229,7 @@ func getTopicsForm(pwmApp *PWMEx) *tview.Form {
 
 func getParmsForm(pwmApp *PWMEx) *tview.Form {
 	return tview.NewForm().
-		AddDropDown("PWM Pin:", []string{"12", "18", "13", "19"}, -1, nil).
+		AddDropDown("PWM Pin:", []string{"26", "1", "23", "24", "12", "18", "13", "19"}, -1, nil).
 		AddInputField("Non-PWM Pin:", "", 2, nil, nil).
 		AddInputField("Clock Divisor:", "", 10, nil, nil).
 		AddDropDown("PWM Mode:", []string{pwmModeMS, "Balanced"}, -1, pwmApp.SetPWMMode).
@@ -243,10 +251,11 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMEx, msg *tview.TextView) *t
 
 				stopTest = make(chan interface{})
 
+				_, lang := pwmApp.langs.GetCurrentOption()
 				_, pwmPin := pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
 				nonPwmPin := pwmApp.pwmParms.GetFormItem(1).(*tview.InputField).GetText()
 				divisor := pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).GetText()
-				//_, pwmMode := pwmApp.pwmParms.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
+				_, pwmMode := pwmApp.pwmParms.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
 				cycle := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
 				pulseWidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
 				_, pwmType := pwmApp.pwmParms.GetFormItem(6).(*tview.DropDown).GetCurrentOption()
@@ -260,10 +269,20 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMEx, msg *tview.TextView) *t
 				} else {
 					pin = pwmPin
 				}
-				msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType), pinWarningText))
+				if lang == goLang {
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType), pinWarningText))
+				} else {
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildCCommand(pin, divisor, cycle, pulseWidth, pwmType,
+						pwmMode), pinWarningText))
+				}
 
 				var out bytes.Buffer
-				cmd := exec.Command("sudo", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType)...)
+				var cmd *exec.Cmd
+				if lang == goLang {
+					cmd = exec.Command("sudo", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType)...)
+				} else {
+					cmd = exec.Command("sudo", buildCCommand(pin, divisor, cycle, pulseWidth, pwmType, pwmMode)...)
+				}
 				cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 				cmd.Stdout = &out
 
