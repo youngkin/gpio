@@ -3,40 +3,34 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 //
-// run with sudo /usr/local/go/bin/go run ./apps/freqtest.go -pin=18 -div=9600000 -cycle=2400000 -pulseWidth=4
+// run with sudo /usr/local/go/bin/go run ./apps/freqtest.go -pin=18 -freq=9600000 -range=2400000 -pulsewidth=4
 //
 // This program visually demonstrates the the association between rpio.SetFreq() and
 // rpio.SetDutyCycle(). rpio.SetFreq() sets the PWM clock frequency. rpio.SetDutyCycle()
-// specifies how long a pin is in HIGH state (dutyLen) vs. the length of the containing
-// cycle (cycleLen). Duty cycle is the ratio between dutyLen and cycleLen. So a dutyLen
-// of 5 with a cycleLen of 10 would have a duty cycle of 0.5, or 50%.
+// specifies how long a pin is in HIGH state (pulsewidth) vs. the length of the containing
+// range.
 //
-// The relationship demonstrated by this program is more specifically the relationship
-// between the PWM clock frequency and the cycle length (cycleLen in SetDutyCycle()). This
-// ratio sets the frequency of the LED.
+// The Raspberry Pi 3B+ has a number of available clocks. The go-rpio library uses a clock called
+// the Oscillator. This clock has a frequency of 19.2MHz. This freqency can be stepped down to a
+// frequency which is more suitable for a given device like a motor which might require an input
+// frequency of 100kHz. Using the go-rpio library it is possible to directly set the desired frequency
+// of the PWM clock using 'SetFreq()'.
 //
-// Given a clock frequency of 100,000 and a cycle length of 25,000, the LED Hz is 4,
-// that is it blinks 4 times per second. If the cycle length is changed to 400,000, the
-// LED Hz is 0.25, or once every 4 seconds. And finally, if the cycle length is 1,000
-// the LED Hz is 100. At 100Hz, the LED will appear to be continuously on, i.e., not
-// blinking.
+// Given a PWM clock frequency of 100,000 and a range length of 25,000, the LED frequency is 4Hz,
+// that is it blinks 4 times per second. If the range length is changed to 400,000, the
+// LED frequency is 0.25Hz, or once every 4 seconds. And finally, if the range length is 1,000
+// the LED frequency is 100Hz. At 100Hz, the LED will appear to be continuously on, i.e., not
+// blinking.  Using the go-rpio library range and pulse width are set indirectly by setting the
+// duty cycle using 'SetDutyCycl()'.
 //
-// The range of 4688 to 9,600,000 for the clock frequency was chosen because values outside
-// that range caused the LED to exhibit inconsistent behavior. The program will enforce
-// this range.
-//
-// The range of 4 to 38,400,000 for the cycle length is somewhat arbitrary. When the clock
-// frequency is set to 9,600,000 and the cycle length is set to 38,400,000, the LED will
-// blink at 0.25Hz, or once every 4 seconds. 4 was chosen as the lower bound because
-// I arbitrarily chose that the duty cycle would be 25% of the cycle. For an LED this equates
-// to 25% brightness. This is bright enough to be easily seen, but not so bright as to be
-// uncomfortable to look at.
-//
-// BCM pin 18 is used as it is a hardware PWM pin. Any hardware PWM pin can be used if desired.
-// The other hardware PWM pins are BCM pins 12, 13, and 19.
+// For reasons I can't find in the Broadcomm documentation, go-rpio suggests limiting the frequency
+// requested in 'SetFreq()' to the range of 4688Hz and 9.6MHz. I have confirmed that setting
+// frequencies outside this range can lead to unexpected behavior. As a result this program imposes
+// this limit on the requested frequency by setting either the lower or upper bound to stay within
+// this limit if the requested frequency is outside these limits.
 //
 // Run example:
-// sudo /usr/local/go/bin/go run apps/freqtest.go -pwmType="hardware" -cycle="10000" -pulseWidth="25" -pin="18"
+// sudo /usr/local/go/bin/go run apps/freqtest.go -pwmType="hardware" -range="10000" -pulsewidth="25" -pin="18"
 //
 
 package main
@@ -56,104 +50,98 @@ import (
 
 func main() {
 	pwmType := ""
-	divisorStr := ""
-	cycleStr := ""
+	freqStr := ""
+	rrangeStr := ""
 	pwmPinStr := ""
-	pulseWidthStr := ""
+	pulsewidthStr := ""
 	flag.StringVar(&pwmType, "pwmType", "hardware", "defines whether software or hardware PWM should be used")
-	flag.StringVar(&divisorStr, "div", "9600000", "PWM clock frequency divisor")
-	flag.StringVar(&cycleStr, "cycle", "2400000", "PWM cycle/period length in microseconds")
-	flag.StringVar(&pwmPinStr, "pin", "18", "GPIO PWM pin")
-	flag.StringVar(&pulseWidthStr, "pulseWidth", "4", "PWM Pulse Width")
+	flag.StringVar(&freqStr, "freq", "9600000", "desired PWM clock frequency")
+	flag.StringVar(&rrangeStr, "range", "2400000", "PWM range")
+	flag.StringVar(&pwmPinStr, "pin", "18", "BCM pin number")
+	flag.StringVar(&pulsewidthStr, "pulsewidth", "4", "PWM Pulse Width")
 	flag.Parse()
-	fmt.Printf("Input: PWM pin: %s, PWM Type: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, pwmType, divisorStr, cycleStr, pulseWidthStr)
 
-	divisor, cycle, pin, pulse := getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr)
-	fmt.Printf("Using: PWM pin: %s, PWM Type: %s, divisor: %s, cycle: %s, pulse width: %s\n", pwmPinStr, pwmType, divisorStr, cycleStr, pulseWidthStr)
+	freq, rrange, pin, pulsewidth := getParms(freqStr, rrangeStr, pwmPinStr, pulsewidthStr)
+	fmt.Printf("Using: PWM pin: %s, PWM Type: %s, freq: %s, range: %s, pulse width: %s\n",
+		pwmPinStr, pwmType, freqStr, rrangeStr, pulsewidthStr)
 
 	if err := rpio.Open(); err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
 	if pwmType == "software" {
-		runSoftwarePWM(pin, cycle, pulse)
+		runSoftwarePWM(pin, rrange, pulsewidth)
 	}
 
-	runHardwarePwm(pin, divisor, cycle, pulse)
+	runHardwarePwm(pin, freq, uint32(rrange), uint32(pulsewidth))
 }
 
-func getParms(divisorStr, cycleStr, pwmPinStr, pulseWidthStr string) (div, cycle, pin, pulse int) {
-	div, err := strconv.Atoi(divisorStr)
+func getParms(freqStr, rrangeStr, pinStr, pulsewidthStr string) (freq, rrange, pin, pulsewidth int) {
+	freq, err := strconv.Atoi(freqStr)
 	if err != nil {
-		fmt.Printf("Error: err getting divisor: %d from divisorStr: %s", err, div, divisorStr)
-		div = 0
+		fmt.Printf("Error: error getting freq: %d from freqStr: %s\n", err, freq, freqStr)
+		freq = 9600000
 	}
-	if div < 4688 {
-		div = 4688
+	if freq < 4688 {
+		freq = 4688
 	}
-	if div > 9600000 {
-		div = 9600000
+	if freq > 9600000 {
+		freq = 9600000
 	}
 
-	cycle, err = strconv.Atoi(cycleStr)
+	rrange, err = strconv.Atoi(rrangeStr)
 	if err != nil {
-		fmt.Printf("Error: err getting cycle: %d from cycleStr: %s", err, cycle, cycleStr)
-		cycle = 0
-	}
-	if cycle < 4 {
-		cycle = 4
-	}
-	if cycle > 38400000 {
-		cycle = 38400000
+		fmt.Printf("Error: error getting rrange: %d from rrangeStr: %s\n", err, rrange, rrangeStr)
+		rrange = 2400000
 	}
 
-	pin, err = strconv.Atoi(pwmPinStr)
+	pin, err = strconv.Atoi(pinStr)
 	if err != nil {
 		pin = 18
-		fmt.Printf("Error: err getting pwmPin: %d from pwmStr: %s", err, pin, pwmPinStr)
+		fmt.Printf("Error: error getting pin: %d from pinStr: %s\n", err, pin, pinStr)
 	}
 
-	pulse, err = strconv.Atoi(pulseWidthStr)
+	pulsewidth, err = strconv.Atoi(pulsewidthStr)
 	if err != nil {
-		pulse = 4
-		fmt.Printf("Error: err getting pulse: %d from pulseWidthStr: %s", err, pulse, pulseWidthStr)
+		pulsewidth = 4
+		fmt.Printf("Error: error getting pulsewidth: %d from pulsewidthStr: %s\n", err, pulsewidth, pulsewidthStr)
 	}
 
-	return div, cycle, pin, pulse
+	return freq, rrange, pin, pulsewidth
 }
 
-func runHardwarePwm(gpin, divisor, cycle, pulse int) {
+func runHardwarePwm(gpin, freq int, rrange, pulsewidth uint32) {
 	pin := rpio.Pin(gpin)
 	pin.Mode(rpio.Pwm)
-	pin.Freq(divisor)
-	dutyCycle := uint32((cycle / pulse))
-	pin.DutyCycle(dutyCycle, uint32(cycle))
+	pin.Freq(freq)
+	pin.DutyCycle(pulsewidth, rrange)
 
 	// Initialize signal handling needed to catch ctl-C
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
-	go hardwareInterruptHandler(sigs, cycle, pin)
+	go hardwareInterruptHandler(sigs, rrange, pin)
 
 	for {
 		time.Sleep(time.Millisecond * 20)
 	}
 }
 
-func runSoftwarePWM(gpin, cycle, duty int) {
+func runSoftwarePWM(gpin, rrange, pulsewidth int) {
 	pin := rpio.Pin(gpin)
+	pin.Output()
 	on := rpio.Low
 	off := rpio.High
 	if gpin == 18 || gpin == 12 || gpin == 13 || gpin == 19 {
 		on = rpio.High
 		off = rpio.Low
 	}
+
+	// Initialize signal handling needed to catch ctl-C
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
+	go softwareInterruptHandler(sigs, rrange, pin, off)
+
 	for {
-
-		// Initialize signal handling needed to catch ctl-C
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
-		go softwareInterruptHandler(sigs, cycle, pin, off)
-
 		// Set LED to a dimmer brightVal. Notice how the LED will flicker due to
 		// lack of uniformity in the OS scheduler and the 'time.Sleep()' function.
 		// The amount of actual flickering will depend on the computing power of the
@@ -164,12 +152,12 @@ func runSoftwarePWM(gpin, cycle, duty int) {
 		// also exhibit more flickering vs. higher values (e.g., 10000).
 		for {
 			rpio.WritePin(pin, on)
-			time.Sleep(time.Microsecond * time.Duration(duty))
+			time.Sleep(time.Microsecond * time.Duration(pulsewidth))
 			rpio.WritePin(pin, off)
-			// brightVal is the duty cycle. 10ms is the range (.e., from the max value of brightVal
+			// brightVal is the duty rrange. 10ms is the range (.e., from the max value of brightVal
 			// of 10,000 and base units of microseconds). To have the total duration
-			// equal the range this sleep needs to subtract the duty cycle from the range.
-			time.Sleep(time.Millisecond*10 - time.Microsecond*time.Duration(duty))
+			// equal the range this sleep needs to subtract the duty rrange from the range.
+			time.Sleep(time.Millisecond*10 - time.Microsecond*time.Duration(pulsewidth))
 
 		}
 		// turn LED off
@@ -179,11 +167,11 @@ func runSoftwarePWM(gpin, cycle, duty int) {
 	}
 }
 
-func hardwareInterruptHandler(sigs chan os.Signal, cycle int, pin rpio.Pin) {
+func hardwareInterruptHandler(sigs chan os.Signal, rrange uint32, pin rpio.Pin) {
 	<-sigs
 	fmt.Println("\nExiting...")
 	// Turn off the LED
-	pin.DutyCycle(0, uint32(cycle))
+	pin.DutyCycle(0, rrange)
 	pin.Mode(rpio.Output)
 	pin.Mode(rpio.Pwm)
 	rpio.Close()
@@ -191,7 +179,7 @@ func hardwareInterruptHandler(sigs chan os.Signal, cycle int, pin rpio.Pin) {
 
 }
 
-func softwareInterruptHandler(sigs chan os.Signal, cycle int, pin rpio.Pin, off rpio.State) {
+func softwareInterruptHandler(sigs chan os.Signal, rrange int, pin rpio.Pin, off rpio.State) {
 	<-sigs
 	fmt.Println("\nExiting...")
 	// Turn off the LED

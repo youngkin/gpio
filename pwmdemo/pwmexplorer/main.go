@@ -4,7 +4,7 @@
 // license that can be found in the LICENSE file.
 //
 
-// run with sudo /usr/local/go/bin/go run ./apps/freqtest.go -pin=18 -div=9600000 -cycle=2400000 -pulseWidth=4
+// run with sudo /usr/local/go/bin/go run ./apps/freqtest.go -pin=18 -freq=9600000 -range=2400000 -pulsewidth=4
 package main
 
 import (
@@ -68,10 +68,10 @@ func (p *PWMEx) SetHelpTopic(option string, optionIndex int) {
 		p.codeView.Write([]byte("...\npin = pin.Mode(rpio.MarkSpace))\n...\n"))
 	case 5:
 		p.helpView.Write([]byte("Range is blah blah blah."))
-		p.codeView.Write([]byte("...\npin.DutyCycle(pulseWidth, range))\n\n..."))
+		p.codeView.Write([]byte("...\npin.DutyCycle(pulsewidth, rrange))\n\n..."))
 	case 6:
 		p.helpView.Write([]byte("Pulse width is blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah balh balh balh balh ablah blah blah."))
-		p.codeView.Write([]byte("...\npin.DutyCycle(pulseWidth, range))\n\n..."))
+		p.codeView.Write([]byte("...\npin.DutyCycle(pulsewidth, rrange))\n\n..."))
 	}
 
 	p.msg.Clear()
@@ -186,18 +186,18 @@ func newPrimitive(text string) tview.Primitive {
 		SetText(text)
 }
 
-func buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType string) []string {
+func buildGoCommand(pin, freq, rrange, pulsewidth, pwmType string) []string {
 	return []string{"/usr/local/go/bin/go", "run", "./apps/freqtest.go",
-		fmt.Sprintf("-pin=%s", pin), fmt.Sprintf("-div=%s", divisor),
-		fmt.Sprintf("-cycle=%s", cycle), fmt.Sprintf("-pulseWidth=%s", pulseWidth),
+		fmt.Sprintf("-pin=%s", pin), fmt.Sprintf("-freq=%s", freq),
+		fmt.Sprintf("-range=%s", rrange), fmt.Sprintf("-pulsewidth=%s", pulsewidth),
 		fmt.Sprintf("-pwmType=%s", pwmType),
 	}
 }
 
-func buildCCommand(pin, divisor, cycle, pulseWidth, pwmType, pwmMode string) []string {
+func buildCCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmMode string) []string {
 	return []string{"./apps/freqtest",
 		fmt.Sprintf("--pin=%s", pin), fmt.Sprintf("--divisor=%s", divisor),
-		fmt.Sprintf("--cycle=%s", cycle), fmt.Sprintf("--pulseWidth=%s", pulseWidth),
+		fmt.Sprintf("--range=%s", rrange), fmt.Sprintf("--pulsewidth=%s", pulsewidth),
 		fmt.Sprintf("--type=%s", pwmType), fmt.Sprintf("--mode=%s", pwmMode),
 	}
 }
@@ -256,8 +256,8 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMEx, msg *tview.TextView) *t
 				nonPwmPin := pwmApp.pwmParms.GetFormItem(1).(*tview.InputField).GetText()
 				divisor := pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).GetText()
 				_, pwmMode := pwmApp.pwmParms.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
-				cycle := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
-				pulseWidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
+				rrange := pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).GetText()
+				pulsewidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
 				_, pwmType := pwmApp.pwmParms.GetFormItem(6).(*tview.DropDown).GetCurrentOption()
 
 				// if nonPwmPin is populated use it
@@ -270,18 +270,18 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMEx, msg *tview.TextView) *t
 					pin = pwmPin
 				}
 				if lang == goLang {
-					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType), pinWarningText))
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType), pinWarningText))
 				} else {
-					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildCCommand(pin, divisor, cycle, pulseWidth, pwmType,
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType,
 						pwmMode), pinWarningText))
 				}
 
 				var out bytes.Buffer
 				var cmd *exec.Cmd
 				if lang == goLang {
-					cmd = exec.Command("sudo", buildGoCommand(pin, divisor, cycle, pulseWidth, pwmType)...)
+					cmd = exec.Command("sudo", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType)...)
 				} else {
-					cmd = exec.Command("sudo", buildCCommand(pin, divisor, cycle, pulseWidth, pwmType, pwmMode)...)
+					cmd = exec.Command("sudo", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmMode)...)
 				}
 				cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 				cmd.Stdout = &out
