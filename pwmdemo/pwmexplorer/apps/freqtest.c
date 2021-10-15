@@ -27,8 +27,8 @@
 // up to and including the range value, will make the LED brighter.
 //
 // Build: gcc -o freqtest freqtest.c  -lwiringPi -lpthread
-// Run: sudo apps/freqtest --pin=<pwmPinNo> --divisor=<2 to 4095> --range=<n> --pulsewidth=<n> --type=<hardware|software> --mode=<Balanced|Mark/Space>
-// E.g., sudo apps/freqtest --pin=1 --divisor=192 --range=1000 --pulsewidth=50 --type=hardware --mode=Balanced
+// Run: sudo apps/freqtest --pin=<pwmPinNo> --divisor=<2 to 4095> --range=<n> --pulsewidth=<n> --type=<hardware|software> --mode=<balanced|markspace>
+// E.g., sudo apps/freqtest --pin=1 --divisor=192 --range=1000 --pulsewidth=50 --type=hardware --mode=balanced
 // 
 #include <wiringPi.h>
 #include <softPwm.h>
@@ -40,15 +40,20 @@
 #include <string.h>
  
 int globalPin = 0;
+char* markspace = "markspace";
+char* balanced = "balanced";
+char* hardware = "hardware";
+char* software = "software";
 
 void interruptHandler(int);
-void runPWM(char*, char*, int, int, int, int);
+void runHardwarePWM(char* pwmMode, int divisor, int range, int pin, int pulsewidth); 
+void runSoftwarePWM(int pin, int range, int pulsewidth); 
 
 void printUsage() {
     printf("\nUsage:\n");
     printf("\t--help (prints this message)\n");
     printf("\t--type=[software|hardware]\n");
-    printf("\t--mode=[Mark/Space|Balanced]\n");
+    printf("\t--mode=[markspace|balanced]\n");
     printf("\t--divisor=[2 to 4095]\n");
     printf("\t--range=[n]\n");
     printf("\t--pulsewidth=[0 to 'range']\n");
@@ -58,8 +63,8 @@ void printUsage() {
 
 
 int main(int argc, char *argv[]) {
-    char *pwmType = "hardware";
-    char *pwmMode = "Balanced";
+    char *pwmType = hardware;
+    char *pwmMode = balanced;
     int divisor = 192;
     int range = 1000;
     int pin = 1;
@@ -136,9 +141,15 @@ int main(int argc, char *argv[]) {
 
     printf("Using: PWM pin: %d, PWM Type %s:, PWM Mode: %s, divisor: %d, range: %d, pulsewidth: %d\n", 
             pin, pwmType, pwmMode, divisor, range, pulsewidth);
-    runPWM(pwmType, pwmMode, divisor, range, pin, pulsewidth);
+
+    if (strcmp(pwmType, hardware) == 0) {
+        runHardwarePWM(pwmMode, divisor, range, pin, pulsewidth);
+    } else {
+        runSoftwarePWM(pin, range, pulsewidth);
+    }
 }
 
+//TODO: This only works for PWM pins. For non-PWM pins it leaves the LED on.
 void interruptHandler(int sig) {
     // Turn off LED
     pinMode(globalPin, PWM_OUTPUT);
@@ -149,10 +160,10 @@ void interruptHandler(int sig) {
     exit(0);
 }
 
-void runPWM(char* pwmType, char* pwmMode, int divisor, int range, int pin, int pulsewidth) {
+void runHardwarePWM(char* pwmMode, int divisor, int range, int pin, int pulsewidth) {
     pinMode(pin, PWM_OUTPUT);
     pwmSetRange(range);
-    if (strcmp(pwmMode, "Balanced") == 0) {
+    if (strcmp(pwmMode, balanced) == 0) {
         pwmSetMode(PWM_MODE_BAL);
     } else {
         pwmSetMode(PWM_MODE_MS);
@@ -160,7 +171,14 @@ void runPWM(char* pwmType, char* pwmMode, int divisor, int range, int pin, int p
     pwmSetClock(divisor);
     pwmWrite(pin, pulsewidth);
     while (1) {
-//        sleep(1);
+        delayMicroseconds(1000);
+    }
+}
+
+void runSoftwarePWM(int pin, int range, int pulsewidth) {
+    softPwmCreate(pin, 0, range);
+    softPwmWrite(pin, pulsewidth);
+    while (1) {
         delayMicroseconds(1000);
     }
 }
