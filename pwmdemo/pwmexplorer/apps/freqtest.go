@@ -142,22 +142,24 @@ func runSoftwarePWM(gpin, rrange, pulsewidth int) {
 	go softwareInterruptHandler(sigs, rrange, pin, off)
 
 	for {
-		// Set LED to a dimmer brightVal. Notice how the LED will flicker due to
+		// Set LED to a specific brightness. Notice how the LED will flicker due to
 		// lack of uniformity in the OS scheduler and the 'time.Sleep()' function.
 		// The amount of actual flickering will depend on the computing power of the
 		// hardware and the CPU utilization.
 		//
-		// The ratio of time the pin is set to LOW vs. HIGH determines how bright the LED
-		// will be. Lower ratios will result in a dimmer LED. Lower ratios (e.g., 10) will
-		// also exhibit more flickering vs. higher values (e.g., 10000).
+		// The ratio of time the pin is set to 'on' vs. 'off' determines how bright the LED
+		// will be. Lower pulsewidths will result in a dimmer LED. Lower pulsewidths (e.g., 10)
+		// will also exhibit more flickering vs. higher values (e.g., 10000).
+		//
+		// The `time.Sleep` multipler is 100. Given the units are microseconds (time.Microsecond)
+		// the value of 100 results in a period of 100 microseconds. This equates to a
+		// frequency of 10kHz (1/0.0001). This frequency is fixed and can only be changed by
+		// modifying this code.
 		for {
 			rpio.WritePin(pin, on)
-			time.Sleep(time.Microsecond * time.Duration(pulsewidth))
+			time.Sleep((time.Microsecond * 100) * time.Duration(pulsewidth))
 			rpio.WritePin(pin, off)
-			// brightVal is the duty rrange. 10ms is the range (.e., from the max value of brightVal
-			// of 10,000 and base units of microseconds). To have the total duration
-			// equal the range this sleep needs to subtract the duty rrange from the range.
-			time.Sleep(time.Millisecond*10 - time.Microsecond*time.Duration(pulsewidth))
+			time.Sleep((time.Microsecond * 100) * time.Duration(rrange-pulsewidth))
 
 		}
 		// turn LED off

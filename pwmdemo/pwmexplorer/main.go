@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"syscall"
 
 	"github.com/gdamore/tcell/v2"
@@ -442,20 +443,32 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 				pulsewidth := pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).GetText()
 				_, pwmType := pwmApp.pwmParms.GetFormItem(6).(*tview.DropDown).GetCurrentOption()
 
+				var pwmClockFreq float32 = 0.0
+				divisorInt, _ := strconv.Atoi(divisor)
+				if lang == cLang {
+					pwmClockFreq = 19200000 / float32(divisorInt) //19200000 is the oscillator clock frequency used as clock source
+				} else {
+					pwmClockFreq = float32(divisorInt)
+				}
+				rrangeInt, _ := strconv.Atoi(rrange)
+				freqMsg := fmt.Sprintf("PWM Clock Frequency(Hz): %9.2f, GPIO Pin Frequency(Hz): %9.2f",
+					pwmClockFreq, pwmClockFreq/float32(rrangeInt))
+
 				// if nonPwmPin is populated use it
 				pin := ""
 				pinWarningText := ""
 				if nonPwmPin != "" {
 					pin = nonPwmPin
-					pinWarningText = "Note: non-PWM pin being used"
+					pinWarningText = "Note: non-PWM pin being used\n"
 				} else {
 					pin = pwmPin
 				}
 				if lang == goLang {
-					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType), pinWarningText))
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s%s", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType),
+						freqMsg, pinWarningText))
 				} else {
-					msg.SetText(fmt.Sprintf("Command line: %v\n%s", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType,
-						pwmMode), pinWarningText))
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s%s", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType,
+						pwmMode), freqMsg, pinWarningText))
 				}
 
 				var out bytes.Buffer
