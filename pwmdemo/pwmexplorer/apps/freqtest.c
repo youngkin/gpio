@@ -12,23 +12,20 @@
 // which means a value of 4096 equates to a divisor of 0 and 4097 equates to a divisor
 // 1, and so on. 'pwmSetRange()' sets the range for the PWM duty cycle. 'pwmWrite()' 
 // sets the pulsewidth for the PWM duty cycle. Duty cycle is the ratio between the
-// pulsewidth and the range. So a pulsewidth of 5 and a range of 10 would have a duty
-// cycle of 0.5 or 50%.
+// pulsewidth and the range. 
 //
-// The relationship demonstrated by this program is more specifically the relationship
-// between the PWM clock frequency and the range (pwmSetClock() and pwmSetRange()). This
-// ratio sets the frequency for the LED.
+// Given a PWM clock frequency of 100,000 and a range length of 25,000, the LED frequency is 4Hz,
+// that is it blinks 4 times per second. If the range length is changed to 400,000, the
+// LED frequency is 0.25Hz, or once every 4 seconds. And finally, if the range length is 1,000
+// the LED frequency is 100Hz. At 100Hz, the LED will appear to be continuously on, i.e., not
+// blinking.
 //
-// Given a PWM clock frequency of 100,000 and a range value of 25,000, the LED Hz is 4,
-// that is it blinks 4 times per second. If the range value is changed to 400,000, the
-// LED Hz is 0.25, or once every 4 seconds. And finally, if the range value is 1,000
-// the LED Hz is 100. At 100Hz, the LED will appear to be continuously on, i.e., not
-// blinking. Lower values for pulse width will result in a dimmer LED, higher values,
-// up to and including the range value, will make the LED brighter.
-//
+// NOTE: There is inadequate error handling in the application. Take care when copying.
+// 
 // Build: gcc -o freqtest freqtest.c  -lwiringPi -lpthread
 // Run: sudo apps/freqtest --pin=<pwmPinNo> --divisor=<2 to 4095> --range=<n> --pulsewidth=<n> --type=<hardware|software> --mode=<balanced|markspace>
 // E.g., sudo apps/freqtest --pin=1 --divisor=192 --range=1000 --pulsewidth=50 --type=hardware --mode=balanced
+// E.g., or just sudo apps/freqtest if defaults are acceptable
 // 
 #include <wiringPi.h>
 #include <softPwm.h>
@@ -39,13 +36,20 @@
 #include <unistd.h>
 #include <string.h>
  
+// define magic values
 int globalPin = 0;
 char* markspace = "markspace";
 char* balanced = "balanced";
 char* hardware = "hardware";
 char* software = "software";
+char* LOW      = "0";
+char* HIGH     = "1";
 
-void interruptHandler(int);
+// Define interrupt handlers
+void softwareInterruptHandler(int);
+void hardwareInterruptHandler(int);
+
+// Define functions to run hardware or software PWM
 void runHardwarePWM(char* pwmMode, int divisor, int range, int pin, int pulsewidth); 
 void runSoftwarePWM(int pin, int range, int pulsewidth); 
 
@@ -63,6 +67,7 @@ void printUsage() {
 
 
 int main(int argc, char *argv[]) {
+    // set default values for options  
     char *pwmType = hardware;
     char *pwmMode = balanced;
     int divisor = 192;
@@ -72,13 +77,6 @@ int main(int argc, char *argv[]) {
                                                                      
     int c;
     int help_flag;
-
-    signal(SIGINT, interruptHandler);
-
-    if (wiringPiSetup() == -1) {
-        printf("setup wiringPi failed!");
-        return 1;
-    }
 
     static struct option long_options[] =
     {
@@ -94,6 +92,7 @@ int main(int argc, char *argv[]) {
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
+    // Get command line options
     while (1)
     {
             c = getopt_long (argc, argv, "h::t::m::d::c::p::w::",
@@ -142,24 +141,46 @@ int main(int argc, char *argv[]) {
     printf("Using: PWM pin: %d, PWM Type %s:, PWM Mode: %s, divisor: %d, range: %d, pulsewidth: %d\n", 
             pin, pwmType, pwmMode, divisor, range, pulsewidth);
 
+    // Set up the WiringPi library, obtain resources, etc
+    if (wiringPiSetup() == -1) {
+        printf("setup wiringPi failed!");
+        return 1;
+    }
+
     if (strcmp(pwmType, hardware) == 0) {
+        // register signal handler to catch ctl-C used to end the program for hardware PWM
+        signal(SIGINT, hardwareInterruptHandler);
         runHardwarePWM(pwmMode, divisor, range, pin, pulsewidth);
     } else {
+        // register interrupt handler to catch ctl-C used to end the program for software PWM
+        signal(SIGINT, softwareInterruptHandler);
         runSoftwarePWM(pin, range, pulsewidth);
     }
 }
 
-//TODO: This only works for PWM pins. For non-PWM pins it leaves the LED on.
-void interruptHandler(int sig) {
+// softwareInterruptHandler catches SIGINT when ctl-C is pressed in order to halt the program gracefully.
+void softwareInterruptHandler(int sig) {
     // Turn off LED
     pinMode(globalPin, PWM_OUTPUT);
-    pwmWrite(globalPin, 0);
+    pwmWrite(globalPin, HIGH);
 
     printf("\nExiting...\n");
 
     exit(0);
 }
 
+// hardwareInterruptHandler catches SIGINT when ctl-C is pressed in order to halt the program gracefully.
+void hardwareinterruptHandler(int sig) {
+    // Turn off LED
+    pinMode(globalPin, PWM_OUTPUT);
+    pwmWrite(globalPin, LOW);
+
+    printf("\nExiting...\n");
+
+    exit(0);
+}
+
+// runHardwarePWM starts PWM on a hardware PWM pin
 void runHardwarePWM(char* pwmMode, int divisor, int range, int pin, int pulsewidth) {
     pinMode(pin, PWM_OUTPUT);
     pwmSetRange(range);
@@ -175,6 +196,8 @@ void runHardwarePWM(char* pwmMode, int divisor, int range, int pin, int pulsewid
     }
 }
 
+// runSoftwarePWM starts PWM implemented by this function vs. via the board hardware.
+// NOTE: WiringPi directly implements software PWM. The PWM runs at 100MHz.
 void runSoftwarePWM(int pin, int range, int pulsewidth) {
     softPwmCreate(pin, 0, range);
     softPwmWrite(pin, pulsewidth);

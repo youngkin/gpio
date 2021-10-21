@@ -3,8 +3,6 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 //
-// run with sudo /usr/local/go/bin/go run ./apps/freqtest.go -pin=18 -freq=9600000 -range=2400000 -pulsewidth=4
-//
 // This program visually demonstrates the the association between rpio.SetFreq() and
 // rpio.SetDutyCycle(). rpio.SetFreq() sets the PWM clock frequency. rpio.SetDutyCycle()
 // specifies how long a pin is in HIGH state (pulsewidth) vs. the length of the containing
@@ -21,16 +19,12 @@
 // LED frequency is 0.25Hz, or once every 4 seconds. And finally, if the range length is 1,000
 // the LED frequency is 100Hz. At 100Hz, the LED will appear to be continuously on, i.e., not
 // blinking.  Using the go-rpio library range and pulse width are set indirectly by setting the
-// duty cycle using 'SetDutyCycl()'.
+// duty cycle using 'SetDutyCycle()'.
 //
-// For reasons I can't find in the Broadcomm documentation, go-rpio suggests limiting the frequency
-// requested in 'SetFreq()' to the range of 4688Hz and 9.6MHz. I have confirmed that setting
-// frequencies outside this range can lead to unexpected behavior. As a result this program imposes
-// this limit on the requested frequency by setting either the lower or upper bound to stay within
-// this limit if the requested frequency is outside these limits.
-//
-// Run example:
-// sudo /usr/local/go/bin/go run apps/freqtest.go -pwmType="hardware" -range="10000" -pulsewidth="25" -pin="18"
+// Run example (taking default values for PWM parameters):
+// sudo /usr/local/go/bin/go run apps/freqtest.go
+// Run example (See 'flag.*Var()' calls below for details regarding the meaning of the flags):
+// sudo /usr/local/go/bin/go run apps/freqtest.go -pwmType="hardware" -freq="5000" -range="100" -pulsewidth="2" -pin="18"
 //
 
 package main
@@ -41,7 +35,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -49,68 +42,44 @@ import (
 )
 
 func main() {
+	var (
+		freq       int
+		rrange     int
+		pwmPin     int
+		pulsewidth int
+	)
 	pwmType := ""
-	freqStr := ""
-	rrangeStr := ""
-	pwmPinStr := ""
-	pulsewidthStr := ""
+
 	flag.StringVar(&pwmType, "pwmType", "hardware", "defines whether software or hardware PWM should be used")
-	flag.StringVar(&freqStr, "freq", "9600000", "desired PWM clock frequency")
-	flag.StringVar(&rrangeStr, "range", "2400000", "PWM range")
-	flag.StringVar(&pwmPinStr, "pin", "18", "BCM pin number")
-	flag.StringVar(&pulsewidthStr, "pulsewidth", "4", "PWM Pulse Width")
+	flag.IntVar(&freq, "freq", 5000, "desired PWM clock frequency")
+	flag.IntVar(&rrange, "range", 10, "PWM range")
+	flag.IntVar(&pwmPin, "pin", 18, "BCM pin number")
+	flag.IntVar(&pulsewidth, "pulsewidth", 2, "PWM Pulse Width")
 	flag.Parse()
 
-	freq, rrange, pin, pulsewidth := getParms(freqStr, rrangeStr, pwmPinStr, pulsewidthStr)
-	fmt.Printf("Using: PWM pin: %s, PWM Type: %s, freq: %s, range: %s, pulse width: %s\n",
-		pwmPinStr, pwmType, freqStr, rrangeStr, pulsewidthStr)
+	fmt.Printf("Using: PWM pin: %d, PWM Type: %s, freq: %d, range: %d, pulse width: %d\n",
+		pwmPin, pwmType, freq, rrange, pulsewidth)
 
+	// Obtain GPIO resources
 	if err := rpio.Open(); err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
 	if pwmType == "software" {
-		runSoftwarePWM(pin, rrange, pulsewidth)
+		runSoftwarePWM(pwmPin, rrange, pulsewidth)
+		return
 	}
 
-	runHardwarePwm(pin, freq, uint32(rrange), uint32(pulsewidth))
+	runHardwarePwm(pwmPin, freq, uint32(rrange), uint32(pulsewidth))
 }
 
-func getParms(freqStr, rrangeStr, pinStr, pulsewidthStr string) (freq, rrange, pin, pulsewidth int) {
-	freq, err := strconv.Atoi(freqStr)
-	if err != nil {
-		fmt.Printf("Error: error getting freq: %d from freqStr: %s\n", err, freq, freqStr)
-		freq = 9600000
-	}
-	if freq < 4688 {
-		freq = 4688
-	}
-	if freq > 9600000 {
-		freq = 9600000
-	}
-
-	rrange, err = strconv.Atoi(rrangeStr)
-	if err != nil {
-		fmt.Printf("Error: error getting rrange: %d from rrangeStr: %s\n", err, rrange, rrangeStr)
-		rrange = 2400000
-	}
-
-	pin, err = strconv.Atoi(pinStr)
-	if err != nil {
-		pin = 18
-		fmt.Printf("Error: error getting pin: %d from pinStr: %s\n", err, pin, pinStr)
-	}
-
-	pulsewidth, err = strconv.Atoi(pulsewidthStr)
-	if err != nil {
-		pulsewidth = 4
-		fmt.Printf("Error: error getting pulsewidth: %d from pulsewidthStr: %s\n", err, pulsewidth, pulsewidthStr)
-	}
-
-	return freq, rrange, pin, pulsewidth
-}
-
+// runHardwarePWM starts PWM as implemented in the board hardware.
 func runHardwarePwm(gpin, freq int, rrange, pulsewidth uint32) {
+	// Define the pin to be used,
+	// followed by setting its mode to PWM,
+	// then set directly set the PWM Clock frequency (note lack of divisor),
+	// finally set the range and pulse width (pin.DutyCycle())
+	// and send the PWM signal to the pin
 	pin := rpio.Pin(gpin)
 	pin.Mode(rpio.Pwm)
 	pin.Freq(freq)
@@ -121,14 +90,29 @@ func runHardwarePwm(gpin, freq int, rrange, pulsewidth uint32) {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
 	go hardwareInterruptHandler(sigs, rrange, pin)
 
+	// Sleep until ctl-C is caught
 	for {
 		time.Sleep(time.Millisecond * 20)
 	}
 }
 
+// runSoftwarePWM starts PWM implemented by this function vs. via the board hardware
 func runSoftwarePWM(gpin, rrange, pulsewidth int) {
+	// Define the pin to be used for software PWM
 	pin := rpio.Pin(gpin)
+	// Set the pin mode to output so it can accept write
+	// requests.
 	pin.Output()
+
+	// Define variables to represent the pin being in an
+	// 'on' state vs. an 'off' state. These are used because
+	// the way the pins are wired up per
+	// (http://localhost:1313/post/pulsewidthmodulationraspberrypi/)
+	// regular pins get their power from the power bus and hardware
+	// PWM pins get their power directly from the pins. Defining
+	// these variables allows a consistent definition of what
+	// on/off mean regardless of whether regular or hardware PWM
+	// pins are used.
 	on := rpio.Low
 	off := rpio.High
 	if gpin == 18 || gpin == 12 || gpin == 13 || gpin == 19 {
@@ -142,19 +126,24 @@ func runSoftwarePWM(gpin, rrange, pulsewidth int) {
 	go softwareInterruptHandler(sigs, rrange, pin, off)
 
 	for {
-		// Set LED to a specific brightness. Notice how the LED will flicker due to
-		// lack of uniformity in the OS scheduler and the 'time.Sleep()' function.
-		// The amount of actual flickering will depend on the computing power of the
-		// hardware and the CPU utilization.
+		// Execute the software driven duty cycle defined by rrange and
+		// pulsewidth.
 		//
 		// The ratio of time the pin is set to 'on' vs. 'off' determines how bright the LED
 		// will be. Lower pulsewidths will result in a dimmer LED. Lower pulsewidths (e.g., 10)
-		// will also exhibit more flickering vs. higher values (e.g., 10000).
+		// may also, depending on the chosen rage, exhibit more flickering vs. higher
+		// values (e.g., 10000).
 		//
 		// The `time.Sleep` multipler is 100. Given the units are microseconds (time.Microsecond)
 		// the value of 100 results in a period of 100 microseconds. This equates to a
 		// frequency of 10kHz (1/0.0001). This frequency is fixed and can only be changed by
 		// modifying this code.
+		//
+		// Notice that the LED might flicker due to a lack of uniformity in the OS scheduler
+		// and the 'time.Sleep()' function. The amount of actual flicker that may occur will
+		// depend on the computing power of the hardware and the CPU utilization.
+		//
+		// Loop until a ctl-C signal is caught
 		for {
 			rpio.WritePin(pin, on)
 			time.Sleep((time.Microsecond * 100) * time.Duration(pulsewidth))
@@ -162,25 +151,27 @@ func runSoftwarePWM(gpin, rrange, pulsewidth int) {
 			time.Sleep((time.Microsecond * 100) * time.Duration(rrange-pulsewidth))
 
 		}
-		// turn LED off
-		rpio.WritePin(pin, off)
-		time.Sleep(time.Second)
-
 	}
 }
 
+// hardwareInterruptHandler handles the SIGINT caught when ctl-C is entered. It will
+// return the pin to it's state before the program started and release GPIO resources
+// before exiting. It is registered as the SIGINT handler when hardware PWM is
+// specified.
 func hardwareInterruptHandler(sigs chan os.Signal, rrange uint32, pin rpio.Pin) {
 	<-sigs
 	fmt.Println("\nExiting...")
 	// Turn off the LED
 	pin.DutyCycle(0, rrange)
 	pin.Mode(rpio.Output)
-	pin.Mode(rpio.Pwm)
 	rpio.Close()
 	os.Exit(0)
 
 }
 
+// softwareInterruptHandler handles the SIGINT caught when ctl-C is entered. It will
+// return the pin to it's state before the program started and release GPIO resources
+// before exiting. It is registered as the SIGINT handler when softare PWM is specified.
 func softwareInterruptHandler(sigs chan os.Signal, rrange int, pin rpio.Pin, off rpio.State) {
 	<-sigs
 	fmt.Println("\nExiting...")
