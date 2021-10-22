@@ -11,9 +11,9 @@
 #include <stdlib.h>
 
 #define uchar unsigned char
-#define LedPinRed    24
+#define LedPinRed    0
 #define LedPinGreen  1
-#define LedPinBlue   23
+#define LedPinBlue   2
 
 static volatile int keepRunning = 1;
 

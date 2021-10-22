@@ -16,6 +16,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/youngkin/gpio/pwmdemo/pwmexplorer/docs"
 )
 
 // PWMApp contains the state of the application
@@ -107,17 +108,17 @@ func (p *PWMApp) SetHelpTopic(option string, optionIndex int) {
 
 	switch optionIndex {
 	case 0:
-		p.helpView.Write([]byte("General information blah blah blah."))
+		p.helpView.Write([]byte(docs.GeneralHelp))
 		p.codeView.Write([]byte(""))
 	case 1:
-		p.helpView.Write([]byte("The PWM Pin is blah blah blah."))
-		p.codeView.Write([]byte("...\npin = rpio.Pin(18)\npin.Mode(rpio.PWM)\n\n..."))
+		fmt.Fprintf(p.codeView, docs.PWMPinHelpCodeGo)
+		fmt.Fprintf(p.helpView, docs.PWMPinHelp)
 	case 2:
-		p.helpView.Write([]byte("The Non-PWM Pin is blah blah blah."))
-		p.codeView.Write([]byte("...\npin = rpio.Pin(18)\npin.Mode(rpio.OUTPUT)\n\n..."))
+		fmt.Fprintf(p.codeView, docs.NonPWMPinHelpCodeGo)
+		fmt.Fprintf(p.helpView, docs.NonPWMPinHelp)
 	case 3:
-		p.helpView.Write([]byte("The Clock Divisor is blah blah blah."))
-		p.codeView.Write([]byte("...\npin.Freq(clockDivisor))\n\n..."))
+		fmt.Fprintf(p.codeView, docs.ClockFreqHelpCodeGo)
+		fmt.Fprintf(p.helpView, docs.ClockFreqHelp)
 	case 4:
 		if lang == goLang && pwmModeMS == modeOpt {
 			p.helpView.Write([]byte("[red]PWM Mode 'Mark/Space' isn't available in Go.[white]\n"))
@@ -311,7 +312,10 @@ func main() {
 	codeView := getHelpView(ui)
 
 	helpView.SetTitle("Help").SetBorder(true).SetTitleColor(tcell.ColorYellow)
-	codeView.SetTitle("Code").SetBorder(true)
+	codeView.SetTitle("Code").SetBorder(true).SetTitleColor(tcell.ColorYellow)
+	codeView.SetDynamicColors(true)
+	helpView.SetTextColor(tcell.ColorYellow)
+	//	codeView.SetTextColor(tcell.ColorYellow)
 	// Go is the default language, set pins accordingly
 	msg.SetText("Messages: Use mouse to navigate screen.")
 
@@ -322,7 +326,7 @@ func main() {
 	tcodeGrid := getTextCodeGrid(helpView, codeView)
 
 	topics := getTopicsForm(&pwmApp)
-	helpView.Write([]byte(generalHelp))
+	helpView.Write([]byte(docs.GeneralHelp))
 	pwmApp.topics = topics
 
 	parms := getParmsForm(&pwmApp)
