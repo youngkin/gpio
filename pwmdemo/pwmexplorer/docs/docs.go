@@ -1,7 +1,6 @@
 package docs
 
-const GeneralHelp = `
-This application can be used to explore the various PWM settings and how they interact with each other. The main settings are:
+const GeneralHelp = `This application can be used to explore the various PWM settings and how they interact with each other. The main settings are:
 1.  PWM Pin - this is the GPIO PWM hardware pin to use for the test.
 2.  Non-PWM Pin - this is used to specify a software PWM pin to use. It is mutually exclusive with PWM Pin.
 3.  Clock Frequency/Clock Divisor - this is used to set the PWM Clock frequency
@@ -51,5 +50,48 @@ const ClockFreqHelpCodeGo = `
 // 3. Set the desired clock frequency. 'freq' is an int
 [red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]
 [aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
-[aqua]gpin.[yellow]Freq[wheat]([aqua]freq[wheat])[yellow]
+[aqua::b]gpin.[yellow]Freq[wheat]([aqua]freq[wheat])[yellow::-]
+`
+
+const PWMModeHelp = `PWM Mode specifies whether Mark/Space or Balanced modes will be used. Note: some combinations of language, pin type (PWM vs. non-PWM), and PWM Type (hardware/software) don’t support Balanced mode. When this is the case a message will be displayed in the Messages area. The Go go-rpio library doesn’t support balanced mode except when PWM Type software is chosen.`
+
+const PWMModeHelpCodeGo = `
+[green]// 1. Initialize an integer const with a valid GPIO(BCM) pin number
+// 2. Obtain an rpio.Pin instance using the 'pin' (int) defined above    
+// 3. Set the desired clock frequency. 'freq' is an int                 
+[red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]             
+[aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
+[aqua::b]gpin.[yellow]Mode[wheat]([aqua]rpio.Pwm[wheat])[yellow::-]
+`
+
+const RangeHelp = `Range can be thought of as a counter that counts PWM clock pulses. The ratio of range to PWM clock frequency can be thought of as the frequency of the signal sent to a PWM pin. I’ve also seen the term cycle length used as as an alias for range.
+`
+
+const RangeHelpCodeGo = `
+[green]// 1. Initialize an integer const with a valid GPIO(BCM) pin number
+// 2. Obtain an rpio.Pin instance using the 'pin' (int) defined above    
+// 3. Set the desired clock frequency. 'freq' is an int                 
+[red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]             
+[aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
+[aqua]gpin.[yellow]Mode[wheat]([aqua]rpio.Pwm[wheat])[yellow::-]
+[aqua::b]gpin.[yellow]DutyCycle[wheat][aqua](pulsewidth, rrange[wheat])[yellow]
+`
+
+const PulseWidthHelp = `Pulse width is the duration of a pulse. In the various software libraries it's also called width, value, data, and duty length.
+`
+
+const PulseWidthHelpCodeGo = `
+[green]// 1. Initialize an integer const with a valid GPIO(BCM) pin number
+// 2. Obtain an rpio.Pin instance using the 'pin' (int) defined above
+// 3. Set the desired clock frequency. 'freq' is an int
+[red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]
+[aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
+[aqua]gpin.[yellow]Mode[wheat]([aqua]rpio.Pwm[wheat])[yellow::-]
+[aqua::b]gpin.[yellow]DutyCycle[wheat][aqua](pulsewidth, rrange[wheat])[yellow]
+`
+
+const PWMTypeHelp = `PWM Type specifies whether hardware or software PWM is to be used.
+`
+
+const PWMTypeHelpCodeGo = `N/A - PWM Type is inferred when writing the code to use software or hardware PWM. It's use here is strictly limited to directing the application whether to call the software or hardware PWM code branch.
 `
