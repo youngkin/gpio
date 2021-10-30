@@ -42,8 +42,8 @@ char* markspace = "markspace";
 char* balanced = "balanced";
 char* hardware = "hardware";
 char* software = "software";
-char* LOW      = "0";
-char* HIGH     = "1";
+int   OFF      = 0;
+int   ON     = 1;
 
 // Define interrupt handlers
 void softwareInterruptHandler(int);
@@ -160,9 +160,9 @@ int main(int argc, char *argv[]) {
 
 // softwareInterruptHandler catches SIGINT when ctl-C is pressed in order to halt the program gracefully.
 void softwareInterruptHandler(int sig) {
-    // Turn off LED
-    pinMode(globalPin, PWM_OUTPUT);
-    pwmWrite(globalPin, HIGH);
+    // Turn off LED by setting the pulse width to 0 (full off)
+    pinMode(globalPin, OUTPUT);
+    digitalWrite(globalPin, HIGH);
 
     printf("\nExiting...\n");
 
@@ -170,10 +170,10 @@ void softwareInterruptHandler(int sig) {
 }
 
 // hardwareInterruptHandler catches SIGINT when ctl-C is pressed in order to halt the program gracefully.
-void hardwareinterruptHandler(int sig) {
+void hardwareInterruptHandler(int sig) {
     // Turn off LED
     pinMode(globalPin, PWM_OUTPUT);
-    pwmWrite(globalPin, LOW);
+    pwmWrite(globalPin, OFF);
 
     printf("\nExiting...\n");
 

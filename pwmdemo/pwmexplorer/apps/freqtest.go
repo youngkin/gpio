@@ -65,6 +65,7 @@ func main() {
 		log.Fatal(err)
 		os.Exit(1)
 	}
+	defer rpio.Close()
 	if pwmType == "software" {
 		runSoftwarePWM(pwmPin, rrange, pulsewidth)
 		return
@@ -163,7 +164,7 @@ func hardwareInterruptHandler(sigs chan os.Signal, rrange uint32, pin rpio.Pin) 
 	fmt.Println("\nExiting...")
 	// Turn off the LED
 	pin.DutyCycle(0, rrange)
-	pin.Mode(rpio.Output)
+	//pin.Mode(rpio.Output)
 	rpio.Close()
 	os.Exit(0)
 

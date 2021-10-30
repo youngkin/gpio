@@ -111,8 +111,8 @@ func main() {
 
 	codeView := getHelpView(ui)
 
-	helpView.SetTitle("Help").SetBorder(true).SetTitleColor(tcell.ColorYellow)
-	codeView.SetTitle("Code").SetBorder(true).SetTitleColor(tcell.ColorYellow)
+	helpView.SetTitle("Help (scrollable with mouse)").SetBorder(true).SetTitleColor(tcell.ColorYellow)
+	codeView.SetTitle("Code (scrollable with mouse)").SetBorder(true).SetTitleColor(tcell.ColorYellow)
 	codeView.SetDynamicColors(true)
 	helpView.SetTextColor(tcell.ColorYellow)
 	//	codeView.SetTextColor(tcell.ColorYellow)
@@ -123,7 +123,7 @@ func main() {
 	pwmApp.codeView = codeView
 
 	// Text/Code Grid
-	tcodeGrid := getTextCodeGrid(helpView, codeView)
+	tcodeGrid := getHelpCodeGrid(helpView, codeView)
 
 	topics := getHelpForm(&pwmApp)
 	helpView.Write([]byte(docs.GeneralHelp))
@@ -175,29 +175,35 @@ func (p *PWMApp) setHelpTopic(option string, optionIndex int) {
 	p.helpView.Clear()
 	p.codeView.Clear()
 
+	_, lang := p.langs.GetCurrentOption()
+
 	switch optionIndex {
-	case 0:
+	case 0: // General Help
 		p.helpView.Write([]byte(docs.GeneralHelp))
 		p.codeView.Write([]byte(""))
-	case 1:
-		fmt.Fprintf(p.codeView, docs.PWMPinHelpCodeGo)
+	case 1: // PWM Pin
+		fmt.Fprintf(p.codeView, getPWMHelpCode(lang, 1))
 		fmt.Fprintf(p.helpView, docs.PWMPinHelp)
-	case 2:
-		fmt.Fprintf(p.codeView, docs.NonPWMPinHelpCodeGo)
+	case 2: // Non-PWM Pin
+		fmt.Fprintf(p.codeView, getPWMHelpCode(lang, 2))
 		fmt.Fprintf(p.helpView, docs.NonPWMPinHelp)
-	case 3:
-		fmt.Fprintf(p.codeView, docs.ClockFreqHelpCodeGo)
+	case 3: // Clock Freq/Divisor
+		fmt.Fprintf(p.codeView, getPWMHelpCode(lang, 3))
 		fmt.Fprintf(p.helpView, docs.ClockFreqHelp)
-	case 4:
-		fmt.Fprintf(p.codeView, docs.PWMModeHelpCodeGo)
+	case 4: // PWM Mode
+		fmt.Fprintf(p.codeView, getPWMHelpCode(lang, 4))
 		fmt.Fprintf(p.helpView, docs.PWMModeHelp)
-	case 5:
-		fmt.Fprintf(p.codeView, docs.RangeHelpCodeGo)
+	case 5: // Range
+		fmt.Fprintf(p.codeView, getPWMHelpCode(lang, 5))
 		fmt.Fprintf(p.helpView, docs.RangeHelp)
-	case 6:
-		fmt.Fprintf(p.codeView, docs.PulseWidthHelpCodeGo)
-		fmt.Fprintf(p.helpView, docs.PulseWidthHelp)
-	case 7:
+	case 6: // Pulse Width
+		fmt.Fprintf(p.codeView, getPWMHelpCode(lang, 6))
+		if lang == goLang {
+			fmt.Fprintf(p.helpView, docs.PulseWidthHelpGo)
+		} else {
+			fmt.Fprintf(p.helpView, docs.PulseWidthHelpC)
+		}
+	case 7: // PWM Type
 		fmt.Fprintf(p.codeView, docs.PWMTypeHelpCodeGo)
 		fmt.Fprintf(p.helpView, docs.PWMTypeHelp)
 	default:
@@ -211,37 +217,31 @@ func (p *PWMApp) setHelpTopic(option string, optionIndex int) {
 
 // setPWMMode gets called when the PWM Mode is set/changed (balanced/markspace)
 func (p *PWMApp) setPWMMode(option string, optionIdx int) {
-	//TODO: Need to handle case where a non PWM pin is currently set. Will need to unset it
-	//TODO: and post a message. This should be done first so there's no interaction between
-	//TODO: the other checks below.
-	//TODO:
-	//TODO: p.msg.SetText() will have to be constructed from a help message as is done in
-	//TODO: setNonPWMPin().
 	if p.topics == nil || p.pwmParms == nil || optionIdx == -1 {
 		return // app is still initializing
 	}
 
 	_, lang := p.langs.GetCurrentOption()
-	pwmModeDropdown := p.pwmParms.GetFormItem(pwmModeIdx).(*tview.DropDown)
+	//pwmModeDropdown := p.pwmParms.GetFormItem(pwmModeIdx).(*tview.DropDown)
 	pwmTypeDropdown := p.pwmParms.GetFormItem(pwmTypeIdx).(*tview.DropDown)
 
 	_, pwmType := pwmTypeDropdown.GetCurrentOption()
 	if pwmType == software && option == pwmModeMS {
-		pwmModeDropdown.SetCurrentOption(balancedIdx)
-		p.msg.SetText("Warning: only PWM mode 'balanced' is available for PWM type 'software'")
+		//	pwmModeDropdown.SetCurrentOption(balancedIdx)
+		p.msg.SetText("[red::b]Warning: [red::-]only PWM mode 'balanced' is available for PWM type 'software'")
 		return
 	}
 
 	nonPWMPinInput := p.pwmParms.GetFormItem(nonPwmPinIdx).(*tview.InputField)
 	if lang == goLang && option == pwmModeBal && pwmType == hardware && nonPWMPinInput.GetText() == "" {
-		pwmModeDropdown.SetCurrentOption(markspaceIdx)
-		p.msg.SetText("Warning: PWM mode 'Balanced' is not available with PWM type of hardware and 'Go'.")
+		//	pwmModeDropdown.SetCurrentOption(markspaceIdx)
+		p.msg.SetText("[red::b]Warning: [red::-] PWM mode 'Balanced' is not available with PWM type of hardware and 'Go'.")
 		return
 	}
 
 	if nonPWMPinInput.GetText() != "" && option == pwmModeMS {
-		pwmModeDropdown.SetCurrentOption(balancedIdx)
-		p.msg.SetText("Warning: Only 'balanced' mode is available for non-PWM pins")
+		//	pwmModeDropdown.SetCurrentOption(balancedIdx)
+		p.msg.SetText("[red::b]Warning: [red::-] Only 'balanced' mode is available for non-PWM pins")
 		return
 	}
 
@@ -282,44 +282,44 @@ func (p *PWMApp) setPWMType(option string, optionIdx int) {
 }
 
 // setPWMPin gets called when the PWM pin is selected
-//func (p *PWMApp) setPWMPin(option string, pinIdx int) {
-//	if p.topics == nil || p.pwmParms == nil {
-//		return // app is still initializing
-//	}
-//	nonPWMPinInput := p.pwmParms.GetFormItem(nonPwmPinIdx).(*tview.InputField)
-//	if nonPWMPinInput.GetText() != "" && option != "" {
-//		nonPWMPinInput.SetText("")
-//		p.msg.SetText("Warning: PWM pin specified. The Non PWM Pin will be ignored!")
-//	}
-//}
+func (p *PWMApp) setPWMPin(option string, pinIdx int) {
+	if p.topics == nil || p.pwmParms == nil {
+		return // app is still initializing
+	}
+	nonPWMPinInput := p.pwmParms.GetFormItem(nonPwmPinIdx).(*tview.InputField)
+	if nonPWMPinInput.GetText() != "" && option != "" {
+		p.msg.SetText("[red::b]Warning:[::-] PWM pin specified. The Non PWM Pin will be ignored!")
+		return
+	}
+
+	p.msg.SetText("Messages: Use mouse to navigate screen.")
+}
 
 // setNonPWMPin gets called when a non PWM pin is selected
-//func (p *PWMApp) setNonPWMPin(option string) {
-//	if p.topics == nil || p.pwmParms == nil {
-//		return // app is still initializing
-//	}
-//
-//	helpMsg := "Non PWM pin chosen, Clock Frequency/Frequency setting will be ignored."
-//	pwmPinDropdown := p.pwmParms.GetFormItem(pwmPinIdx).(*tview.DropDown)
-//	_, pwmPinOpt := pwmPinDropdown.GetCurrentOption()
-//	if pwmPinOpt != "" && option != "" {
-//		pwmPinDropdown.SetCurrentOption(pwmPinUnselected)
-//		helpMsg += "\n* Warning: Non-PWM pin will be used. The PWM Pin will be ignored!"
-//	}
-//
-//	//	pwmModeDropdown := p.pwmParms.GetFormItem(pwmModeIdx).(*tview.DropDown)
-//	//	helpMsg += "\n* Warning: Only PWM Mode 'balanced' is available for non-PWM pins"
-//	//	pwmModeDropdown.SetCurrentOption(balancedIdx)
-//
-//	//	pwmTypeDropdown := p.pwmParms.GetFormItem(pwmTypeIdx).(*tview.DropDown)
-//	//	pwmTypeDropdown.SetCurrentOption(softwareIdx)
-//	//	helpMsg += "\n* Warning: Only PWM type 'software' is available for non-PWM pins"
-//
-//	if helpMsg != "" {
-//		p.msg.SetText(helpMsg)
-//
-//	}
-//}
+func (p *PWMApp) setNonPWMPin(option string) {
+	if p.topics == nil || p.pwmParms == nil {
+		return // app is still initializing
+	}
+
+	if option == "" {
+		p.msg.SetText("Messages: Use mouse to navigate screen")
+		return
+	}
+
+	helpMsg := "Non PWM pin chosen, Clock Frequency/Frequency setting will be ignored."
+	pwmPinDropdown := p.pwmParms.GetFormItem(pwmPinIdx).(*tview.DropDown)
+	_, pwmPinOpt := pwmPinDropdown.GetCurrentOption()
+	if pwmPinOpt != "" && option != "" {
+		helpMsg += "\n* [red::b]Warning:[::-] Both PWM and Non-PWM pins have been selected. Please choose just one."
+	}
+
+	if helpMsg != "" {
+		p.msg.SetText(helpMsg)
+		return
+	}
+
+	p.msg.SetText("Messages: Use mouse to navigate screen.")
+}
 
 // setLanguage is called when a language option is selected or changed
 func (p *PWMApp) setLanguage(lang string, langIdx int) {
@@ -338,6 +338,19 @@ func (p *PWMApp) setLanguage(lang string, langIdx int) {
 		pwmPinDropdown.SetOptions([]string{"12", "18", "13", "19", ""}, nil)
 	}
 
+	clockInput := p.pwmParms.GetFormItem(clockDivisorIdx).(*tview.InputField)
+	if lang == goLang {
+		clockInput.SetLabel("Clock Frequency")
+	} else {
+		clockInput.SetLabel("Clock Divisor")
+	}
+
+	helpTopic := p.topics.GetFormItem(0).(*tview.DropDown)
+	helpIdx, hItem := helpTopic.GetCurrentOption()
+	//	if hItem == pwmModeHelp {
+	p.setHelpTopic(hItem, helpIdx)
+	//	}
+
 	pwmTypeDropdown := p.pwmParms.GetFormItem(pwmTypeIdx).(*tview.DropDown)
 	_, pwmType := pwmTypeDropdown.GetCurrentOption()
 	pwmModeDropdown := p.pwmParms.GetFormItem(pwmModeIdx).(*tview.DropDown)
@@ -353,20 +366,6 @@ func (p *PWMApp) setLanguage(lang string, langIdx int) {
 		p.msg.SetText("Warning: only PWM mode 'balanced' is available for PWM type 'software'.")
 		return
 	}
-
-	clockInput := p.pwmParms.GetFormItem(clockDivisorIdx).(*tview.InputField)
-	if lang == goLang {
-		clockInput.SetLabel("Clock Frequency")
-	} else {
-		clockInput.SetLabel("Clock Divisor")
-	}
-
-	//	helpTopic := p.topics.GetFormItem(0).(*tview.DropDown)
-	//	helpIdx, hItem := helpTopic.GetCurrentOption()
-	//	if hItem == pwmModeHelp {
-	//		p.setHelpTopic(hItem, helpIdx)
-	//	}
-
 	// Reset message if everything worked
 	p.msg.SetText("Messages: Use mouse to navigate screen.")
 }
@@ -409,9 +408,9 @@ func getHelpView(ui *tview.Application) *tview.TextView {
 		})
 }
 
-func getTextCodeGrid(helpView, codeView *tview.TextView) *tview.Grid {
+func getHelpCodeGrid(helpView, codeView *tview.TextView) *tview.Grid {
 	return tview.NewGrid().
-		SetRows(-1, -1).
+		SetRows(-9, -13).
 		SetColumns(0).
 		AddItem(helpView, 0, 0, 1, 1, 0, 0, false).
 		AddItem(codeView, 1, 0, 1, 1, 0, 0, false)
@@ -428,15 +427,15 @@ func getParmsForm(pwmApp *PWMApp) *tview.Form {
 	return tview.NewForm().
 		// Go is the default language, set the pins accordingly
 		//TODO: REMOVE?
-		//AddDropDown("PWM Pin:", []string{"12", "18", "13", "19", ""}, -1, pwmApp.setPWMPin).
-		AddDropDown("PWM Pin:", []string{"12", "18", "13", "19", ""}, -1, nil).
+		AddDropDown("PWM Pin:", []string{"12", "18", "13", "19", ""}, -1, pwmApp.setPWMPin).
+		//AddDropDown("PWM Pin:", []string{"12", "18", "13", "19", ""}, -1, nil).
 		//TODO: REMOVE?
-		//AddInputField("Non-PWM Pin:", "", 2, nil, pwmApp.setNonPWMPin).
-		AddInputField("Non-PWM Pin:", "", 2, nil, nil).
+		AddInputField("Non-PWM Pin:", "", 2, nil, pwmApp.setNonPWMPin).
+		//AddInputField("Non-PWM Pin:", "", 2, nil, nil).
 		AddInputField("Clock Frequency:", "", 11, nil, nil).
 		//TODO: REMOVE?
-		//AddDropDown("PWM Mode:", []string{pwmModeMS, pwmModeBal}, -1, pwmApp.setPWMMode).
-		AddDropDown("PWM Mode:", []string{pwmModeMS, pwmModeBal}, -1, nil).
+		AddDropDown("PWM Mode:", []string{pwmModeMS, pwmModeBal}, -1, pwmApp.setPWMMode).
+		//AddDropDown("PWM Mode:", []string{pwmModeMS, pwmModeBal}, -1, nil).
 		AddInputField("Range:", "", 12, nil, nil).
 		AddInputField("Pulse Width:", "", 12, nil, nil).
 		//TODO: REMOVE?
@@ -488,7 +487,6 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 				pinWarningText := ""
 				if nonPwmPin != "" {
 					pin = nonPwmPin
-					pinWarningText = "Note: non-PWM pin being used\n"
 				} else {
 					pin = pwmPin
 				}
@@ -594,7 +592,7 @@ func validateInput(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth
 		return validateC(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth, pwmType)
 	}
 
-	return "[red::b]Warning: [green::-]'C' or 'Go' must be chosen as a language", errors.New("Invalid language specified: %s. It must be 'C' or 'Go'.")
+	return "[red::b]Warning: [green::-]'C' or 'Go' must be chosen as a language", errors.New("invalid language specified: %s. It must be 'C' or 'Go'.")
 }
 
 func validateGo(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth, pwmType string) (string, error) {
@@ -606,6 +604,11 @@ func validateGo(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth, p
 		msg := "[red::b]Warning: [green::-]Go with a a PWM Type of software requires a PWM Mode of balanced"
 		return msg, errors.New(msg)
 	}
+	intDivisor, _ := strconv.Atoi(divisor)
+	if intDivisor < 4688 || intDivisor > 9600000 {
+		msg := fmt.Sprintf("[red::b]Warning: [green::-]A minimum clock frequency of 4688 or a maximum of 96000000 must be specified. Found %d instead.", intDivisor)
+		return msg, errors.New(msg)
+	}
 	return "", nil
 }
 
@@ -614,5 +617,52 @@ func validateC(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth, pw
 		msg := "[red::b]Warning: [green::-]C with a a PWM Type of software requires a PWM Mode of balanced"
 		return msg, errors.New(msg)
 	}
+	intDivisor, _ := strconv.Atoi(divisor)
+	if (intDivisor < 2 || intDivisor > 4095) && nonPWMPin == "" {
+		msg := fmt.Sprintf("[red::b]Warning: [green::-]A minimum divisor of 2 or a maximum of 4095 must be specified. Found %d instead.", intDivisor)
+		return msg, errors.New(msg)
+	}
 	return "", nil
+}
+
+func getPWMHelpCode(lang string, paramPos int) string {
+	switch paramPos {
+	case 1: // PWM Pin
+		if lang == goLang {
+			return docs.PWMPinHelpCodeGo
+		}
+		return docs.PWMPinHelpCodeC
+	case 2: // Non-PWM Pin
+		if lang == goLang {
+			return docs.NonPWMPinHelpCodeGo
+		}
+		return docs.NonPWMPinHelpCodeC
+	case 3: // Clock Freq/Divisor
+		if lang == goLang {
+			return docs.ClockFreqHelpCodeGo
+		}
+		return docs.ClockFreqHelpCodeC
+	case 4: // PWM Mode
+		if lang == goLang {
+			return docs.PWMModeHelpCodeGo
+		}
+		return docs.PWMModeHelpCodeC
+	case 5: // Range
+		if lang == goLang {
+			return docs.RangeHelpCodeGo
+		}
+		return docs.RangeHelpCodeC
+	case 6: // Pulse Width
+		if lang == goLang {
+			return docs.PulseWidthHelpCodeGo
+		}
+		return docs.PulseWidthHelpCodeC
+	case 7: // PWM Type
+		if lang == goLang {
+			return docs.PWMModeHelpCodeGo
+		}
+		return docs.PWMModeHelpCodeC
+	default:
+		return ""
+	}
 }
