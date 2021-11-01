@@ -439,8 +439,8 @@ func getParmsForm(pwmApp *PWMApp) *tview.Form {
 		AddInputField("Range:", "", 12, nil, nil).
 		AddInputField("Pulse Width:", "", 12, nil, nil).
 		//TODO: REMOVE?
-		//AddDropDown("PWM Type:", []string{hardware, software}, 0, pwmApp.setPWMType)
-		AddDropDown("PWM Type:", []string{hardware, software}, 0, nil)
+		//AddDropDown("PWM Type:", []string{hardware, software}, -1, pwmApp.setPWMType)
+		AddDropDown("PWM Type:", []string{hardware, software}, -1, nil)
 }
 
 func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *tview.Form {
@@ -467,12 +467,17 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 
 				var pwmClockFreq float32 = 0.0
 				divisorInt, _ := strconv.Atoi(divisor)
+				rrangeInt, _ := strconv.Atoi(rrange)
 				if lang == cLang {
 					pwmClockFreq = 19200000 / float32(divisorInt) //19200000 is the oscillator clock frequency used as clock source
 				} else {
-					pwmClockFreq = float32(divisorInt)
+					pwmClockFreq = float32(divisorInt) // Go always uses divisor for the PWM clock frequency
 				}
-				rrangeInt, _ := strconv.Atoi(rrange)
+
+				// pwmType software will always have a PWM Clock frequency of 10kHz
+				if pwmType == software {
+					pwmClockFreq = 10000
+				}
 				freqMsg := fmt.Sprintf("PWM Clock Frequency(Hz): %9.2f, GPIO Pin Frequency(Hz): %9.2f",
 					pwmClockFreq, pwmClockFreq/float32(rrangeInt))
 
@@ -539,15 +544,6 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 				msg.SetText("No tests running")
 			}()
 		}).
-		AddButton("Reset", func() {
-			pwmApp.pwmParms.GetFormItem(0).(*tview.DropDown).SetCurrentOption(-1)
-			pwmApp.pwmParms.GetFormItem(1).(*tview.InputField).SetText("")
-			pwmApp.pwmParms.GetFormItem(2).(*tview.InputField).SetText("")
-			pwmApp.pwmParms.GetFormItem(3).(*tview.DropDown).SetCurrentOption(-1)
-			pwmApp.pwmParms.GetFormItem(4).(*tview.InputField).SetText("")
-			pwmApp.pwmParms.GetFormItem(5).(*tview.InputField).SetText("")
-			pwmApp.pwmParms.GetFormItem(6).(*tview.DropDown).SetCurrentOption(-1)
-		}).
 		AddButton("Quit", func() {
 			ui.Stop()
 		})
@@ -559,6 +555,11 @@ func validateInput(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth
 	}
 
 	if nonPWMPin != "" && pwmType == hardware {
+		msg := fmt.Sprintf("[red::b]Warning[green::-]: Non-PWM pin %s specified with a PWM Type of hardware. Non-PWM pins require PWM Type of software", nonPWMPin)
+		return msg, errors.New(msg)
+	}
+
+	if nonPWMPin != "" && pwmMode == software {
 		msg := fmt.Sprintf("[red::b]Warning[green::-]: Non-PWM pin %s specified with a PWM Type of hardware. Non-PWM pins require PWM Type of software", nonPWMPin)
 		return msg, errors.New(msg)
 	}
@@ -605,7 +606,7 @@ func validateGo(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth, p
 		return msg, errors.New(msg)
 	}
 	intDivisor, _ := strconv.Atoi(divisor)
-	if intDivisor < 4688 || intDivisor > 9600000 {
+	if pwmType == hardware && (intDivisor < 4688 || intDivisor > 9600000) {
 		msg := fmt.Sprintf("[red::b]Warning: [green::-]A minimum clock frequency of 4688 or a maximum of 96000000 must be specified. Found %d instead.", intDivisor)
 		return msg, errors.New(msg)
 	}

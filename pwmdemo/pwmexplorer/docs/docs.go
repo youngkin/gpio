@@ -2,7 +2,7 @@ package docs
 
 const GeneralHelp = `This application can be used to explore the various PWM settings and how they interact with each other. The main settings are:
 1.  PWM Pin - this is the GPIO PWM hardware pin to use for the test.
-2.  Non-PWM Pin - this is used to specify a software PWM pin to use. It is mutually exclusive with PWM Pin.
+2.  Non-PWM Pin - this is used to specify a software PWM pin to use. It is mutually exclusive with PWM Pin. A hardware pin may be specfied, but it'll be used for software PWM.
 3.  Clock Frequency/Clock Divisor - this is used to set the PWM Clock frequency
 4.  PWM Mode - this is used to specify whether the Balanced or Mark/Space algorithm will be used.
 5.  Range - this is used to specify the range of the duty cycle.
@@ -28,6 +28,7 @@ const PWMPinHelpCodeGo = `[green]// Obtain GPIO resources
 `
 
 const PWMPinHelpCodeC = `[green]// Obtain GPIO resources
+[aqua]int pin[wheat] = [red]0[wheat];
 [orange]if [wheat]([yellow]wiringPiSetup[wheat]() == [red]-1[wheat]) {
     [yellow]printf[wheat]([green]"setup wiringPi failed!"[wheat]);[yellow]
     [red]return 1[wheat]);
@@ -91,14 +92,15 @@ const ClockFreqHelpCodeGo = `[green]// Obtain GPIO resources
 // Obtain an rpio.Pin instance using the 'pin' (int) defined above
 [::bu]// Set the desired clock frequency. 'freq' is an int. Recall that
 // in software PWM the clock frequency is hardcoded.
-[red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]
-[red::b]const [aqua::-]freq[orange] int =  [aqua]4095[yellow]
+[aqua::-]const [aqua::-]pin[orange] int =  [aqua]18[yellow]
+[red::b]const freq[orange] int =  [aqua]100000[yellow]
 [aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
 [aqua::bu]gpin.[yellow]Freq[wheat]([aqua]freq[wheat])[yellow::-]
 `
 
 const ClockFreqHelpCodeC = `[green]// Obtain GPIO resources
 [aqua]int pin[wheat] = [red]0[wheat];
+[aqua]int divisor[wheat] = [red]2[wheat];
 [orange]if [wheat]([yellow]wiringPiSetup[wheat]() == [red]-1[wheat]) {
     [yellow]printf[wheat]([green]"setup wiringPi failed!"[wheat]);[yellow]
     [red]return 1[wheat]);
@@ -135,7 +137,8 @@ const PWMModeHelpCodeGo = `[green]// Obtain GPIO resources
 // mode is being used. See the github repo 'github.com/youngkin/gpio', the 
 // file 'pwmdemo/pwmexplorer/apps/freqtest.go' for the implementation 
 // details for software PWM in Go.
-[red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]             
+[aqua::-]const [aqua::-]pin[orange] int =  [aqua]18[yellow]             
+[red::b]const [aqua::-]freq[orange] int =  [aqua]100000[yellow]             
 [aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
 [aqua]gpin.[yellow]Freq[wheat]([aqua]freq[wheat])[yellow::-]
 [aqua::bu]gpin.[yellow]Mode[wheat]([aqua]rpio.Pwm[wheat])[yellow::-]
@@ -143,6 +146,7 @@ const PWMModeHelpCodeGo = `[green]// Obtain GPIO resources
 
 const PWMModeHelpCodeC = `[green]// Obtain GPIO resources
 [aqua]int pin[wheat] = [red]0[wheat];
+[red::b]int divisor [wheat]= [red]2[wheat];
 [orange]if [wheat]([yellow]wiringPiSetup[wheat]() == [red]-1[wheat]) {
     [yellow]printf[wheat]([green]"setup wiringPi failed!"[wheat]);[yellow]
     [red]return 1[wheat]);
@@ -176,7 +180,10 @@ const RangeHelpCodeGo = `[green]// Obtain GPIO resources
 // Set the desired clock frequency. 'freq' is an int                 
 // Set the pin to PWM
 [::bu]// Set the desired Range of the Duty Cycle
-[red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]             
+[aqua::-]const [aqua::-]pin[orange] int =  [aqua]18[yellow]             
+[aqua]const [aqua::-]freq[orange] int =  [aqua]100000[yellow]             
+[red::b]const [aqua::-]rrange[orange] int =  [aqua]500[yellow]             
+[red::b]const [aqua::-]pulsewidth[orange] int =  [aqua]20[yellow]             
 [aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
 [aqua]gpin.[yellow]Mode[wheat]([aqua]rpio.Pwm[wheat])[yellow::-]
 [aqua]gpin.[yellow]Freq[wheat]([aqua]freq[wheat])[yellow::-]
@@ -185,6 +192,8 @@ const RangeHelpCodeGo = `[green]// Obtain GPIO resources
 
 const RangeHelpCodeC = `[green]// Obtain GPIO resources
 [aqua]int pin[wheat] = [red]0[wheat];
+[aqua]int divisor[wheat] = [read]2[wheat];
+[red::b]const rrange[orange] int =  [aqua]500[yellow]             
 [orange]if [wheat]([yellow]wiringPiSetup[wheat]() == [red]-1[wheat]) {
     [yellow]printf[wheat]([green]"setup wiringPi failed!"[wheat]);[yellow]
     [red]return 1[wheat]);
@@ -198,7 +207,7 @@ const RangeHelpCodeC = `[green]// Obtain GPIO resources
 [green]// 'pwmSetMode()' is used to set the mode to
 // balanced, PWM_MODE_BAL, or markspace, PWM_MODE_MS.
 [green::bu]// 'pwmSetRange()' sets the Range of the Duty Cycle
-[yellow::bu]pinMode[wheat]([aqua]pin, PWM_OUTPUT[wheat]);[yellow::-]
+[yellow::-]pinMode[wheat]([aqua]pin, PWM_OUTPUT[wheat]);[yellow::-]
 [yellow]pwmSetClock[wheat]([aqua]divisor[wheat]);
 [yellow]pwmSetMode[wheat]([red]PWM_MODE_BAL[wheat]);
 [yellow::bu]pwmSetRange[wheat]([aqua]range[wheat]);
@@ -235,7 +244,10 @@ const PulseWidthHelpCodeGo = `[green]// Obtain GPIO resources
 // Set the desired clock frequency. 'freq' is an int
 // Set the pin to PWM
 [::bu]// Set the desired Pulse Width of the Duty Cycle
-[red::b]const [aqua::-]pin[orange] int =  [aqua]18[yellow]
+[aqua::-]const [aqua::-]pin[orange] int =  [aqua]18[yellow]
+[aqua]const [aqua::-]freq[orange] int =  [aqua]100000[yellow]             
+[red::b]const [aqua::-]rrange[orange] int =  [aqua]500[yellow]             
+[red::b]const [aqua::-]pulsewidth[orange] int =  [aqua]20[yellow]             
 [aqua]gpin [orange]= [teal]rpio.[yellow]Pin[wheat]([aqua]pin[wheat])[yellow]
 [aqua]gpin.[yellow]Mode[wheat]([aqua]rpio.Pwm[wheat])[yellow::-]
 [aqua]gpin.[yellow]Freq[wheat]([aqua]freq[wheat])[yellow::-]
@@ -244,6 +256,9 @@ const PulseWidthHelpCodeGo = `[green]// Obtain GPIO resources
 
 const PulseWidthHelpCodeC = `[green]// Obtain GPIO resources
 [aqua]int pin[wheat] = [red]0[wheat];
+[aqua]const [aqua::-]freq[orange] int =  [aqua]100000[yellow]             
+[aqua]const [aqua::-]rrange[orange] int =  [aqua]500[yellow]             
+[aqua::b]const [aqua::-]pulsewidth[orange] int =  [aqua]20[yellow]             
 [orange]if [wheat]([yellow]wiringPiSetup[wheat]() == [red]-1[wheat]) {
     [yellow]printf[wheat]([green]"setup wiringPi failed!"[wheat]);[yellow]
     [red]return 1[wheat]);
@@ -259,11 +274,11 @@ const PulseWidthHelpCodeC = `[green]// Obtain GPIO resources
 [green]// 'pwmSetRange()' sets the Range of the Duty Cycle
 [green::bu]// 'pwmWrite()' sets the Pulse Width of the Duty Cycle
 // and sends the corresponding signal to the specified pin.
-[yellow::bu]pinMode[wheat]([aqua]pin, PWM_OUTPUT[wheat]);[yellow::-]
+[yellow::-]pinMode[wheat]([aqua]pin, PWM_OUTPUT[wheat]);[yellow::-]
 [yellow]pwmSetClock[wheat]([aqua]divisor[wheat]);
 [yellow]pwmSetMode[wheat]([red]PWM_MODE_BAL[wheat]);
 [yellow]pwmSetRange[wheat]([aqua]range[wheat]);
-[yellow]pwmWrite[wheat]([aqua]pin, pulsewidth[wheat]);
+[yellow::bu]pwmWrite[wheat]([yellow]pin, pulsewidth[wheat]);
 `
 
 const PWMTypeHelp = `PWM Type specifies whether hardware or software PWM is to be used.

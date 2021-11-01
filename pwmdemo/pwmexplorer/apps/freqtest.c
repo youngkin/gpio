@@ -160,12 +160,11 @@ int main(int argc, char *argv[]) {
 
 // softwareInterruptHandler catches SIGINT when ctl-C is pressed in order to halt the program gracefully.
 void softwareInterruptHandler(int sig) {
-    // Turn off LED by setting the pulse width to 0 (full off)
+    // Had to switch to OUTPUT explicitly instead of using 'softPwmWrite()' as that wasn't reliable.
     pinMode(globalPin, OUTPUT);
-    digitalWrite(globalPin, HIGH);
-
+    digitalWrite(globalPin, LOW);
+    
     printf("\nExiting...\n");
-
     exit(0);
 }
 

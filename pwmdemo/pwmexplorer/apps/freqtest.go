@@ -105,26 +105,10 @@ func runSoftwarePWM(gpin, rrange, pulsewidth int) {
 	// requests.
 	pin.Output()
 
-	// Define variables to represent the pin being in an
-	// 'on' state vs. an 'off' state. These are used because
-	// the way the pins are wired up per
-	// (http://localhost:1313/post/pulsewidthmodulationraspberrypi/)
-	// regular pins get their power from the power bus and hardware
-	// PWM pins get their power directly from the pins. Defining
-	// these variables allows a consistent definition of what
-	// on/off mean regardless of whether regular or hardware PWM
-	// pins are used.
-	on := rpio.Low
-	off := rpio.High
-	if gpin == 18 || gpin == 12 || gpin == 13 || gpin == 19 {
-		on = rpio.High
-		off = rpio.Low
-	}
-
 	// Initialize signal handling needed to catch ctl-C
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
-	go softwareInterruptHandler(sigs, rrange, pin, off)
+	go softwareInterruptHandler(sigs, rrange, pin, rpio.Low)
 
 	for {
 		// Execute the software driven duty cycle defined by rrange and
@@ -146,9 +130,9 @@ func runSoftwarePWM(gpin, rrange, pulsewidth int) {
 		//
 		// Loop until a ctl-C signal is caught
 		for {
-			rpio.WritePin(pin, on)
+			rpio.WritePin(pin, rpio.High)
 			time.Sleep((time.Microsecond * 100) * time.Duration(pulsewidth))
-			rpio.WritePin(pin, off)
+			rpio.WritePin(pin, rpio.Low)
 			time.Sleep((time.Microsecond * 100) * time.Duration(rrange-pulsewidth))
 
 		}
