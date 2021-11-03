@@ -239,12 +239,6 @@ func (p *PWMApp) setPWMMode(option string, optionIdx int) {
 		return
 	}
 
-	if nonPWMPinInput.GetText() != "" && option == pwmModeMS {
-		//	pwmModeDropdown.SetCurrentOption(balancedIdx)
-		p.msg.SetText("[red::b]Warning: [red::-] Only 'balanced' mode is available for non-PWM pins")
-		return
-	}
-
 	// Reset message if everything worked
 	p.msg.SetText("Messages: Use mouse to navigate screen.")
 }
@@ -329,12 +323,8 @@ func (p *PWMApp) setLanguage(lang string, langIdx int) {
 
 	pwmPinDropdown := p.pwmParms.GetFormItem(pwmPinIdx).(*tview.DropDown)
 	if lang == cLang {
-		//TODO: Remove?
-		//pwmPinDropdown.SetOptions([]string{"1", "23", "24", "26", ""}, p.setPWMPin)
 		pwmPinDropdown.SetOptions([]string{"1", "23", "24", "26", ""}, nil)
 	} else {
-		//TODO: Remove?
-		//pwmPinDropdown.SetOptions([]string{"12", "18", "13", "19", ""}, p.setPWMPin)
 		pwmPinDropdown.SetOptions([]string{"12", "18", "13", "19", ""}, nil)
 	}
 
@@ -376,7 +366,7 @@ func newPrimitive(text string) tview.Primitive {
 		SetText(text)
 }
 
-func buildGoCommand(pin, freq, rrange, pulsewidth, pwmType string) []string {
+func buildGoCommand(pin, freq, rrange, pulsewidth, pwmType, pwmMode string) []string {
 	if freq == "" && pwmType == software {
 		// For software PWM freq can be empty, but freqtest.go requires a valid flag value
 		// to be passed in. So set it to an arbitrary value. 5000 is good since it would
@@ -386,7 +376,7 @@ func buildGoCommand(pin, freq, rrange, pulsewidth, pwmType string) []string {
 	return []string{"/usr/local/go/bin/go", "run", "./apps/freqtest.go",
 		fmt.Sprintf("-pin=%s", pin), fmt.Sprintf("-freq=%s", freq),
 		fmt.Sprintf("-range=%s", rrange), fmt.Sprintf("-pulsewidth=%s", pulsewidth),
-		fmt.Sprintf("-pwmType=%s", pwmType),
+		fmt.Sprintf("-pwmType=%s", pwmType), fmt.Sprintf("-pwmmode=%s", pwmMode),
 	}
 }
 
@@ -426,20 +416,12 @@ func getHelpForm(pwmApp *PWMApp) *tview.Form {
 func getParmsForm(pwmApp *PWMApp) *tview.Form {
 	return tview.NewForm().
 		// Go is the default language, set the pins accordingly
-		//TODO: REMOVE?
 		AddDropDown("PWM Pin:", []string{"12", "18", "13", "19", ""}, -1, pwmApp.setPWMPin).
-		//AddDropDown("PWM Pin:", []string{"12", "18", "13", "19", ""}, -1, nil).
-		//TODO: REMOVE?
 		AddInputField("Non-PWM Pin:", "", 2, nil, pwmApp.setNonPWMPin).
-		//AddInputField("Non-PWM Pin:", "", 2, nil, nil).
 		AddInputField("Clock Frequency:", "", 11, nil, nil).
-		//TODO: REMOVE?
 		AddDropDown("PWM Mode:", []string{pwmModeMS, pwmModeBal}, -1, pwmApp.setPWMMode).
-		//AddDropDown("PWM Mode:", []string{pwmModeMS, pwmModeBal}, -1, nil).
 		AddInputField("Range:", "", 12, nil, nil).
 		AddInputField("Pulse Width:", "", 12, nil, nil).
-		//TODO: REMOVE?
-		//AddDropDown("PWM Type:", []string{hardware, software}, -1, pwmApp.setPWMType)
 		AddDropDown("PWM Type:", []string{hardware, software}, -1, nil)
 }
 
@@ -481,10 +463,11 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 				freqMsg := fmt.Sprintf("PWM Clock Frequency(Hz): %9.2f, GPIO Pin Frequency(Hz): %9.2f",
 					pwmClockFreq, pwmClockFreq/float32(rrangeInt))
 
-				errTxt, err := validateInput(lang, pwmPin, nonPwmPin, divisor, pwmMode, rrange, pulsewidth, pwmType)
-				if err != nil {
-					msg.SetText(errTxt)
-					return
+				pwmModeRpio := "0"
+				if pwmMode == pwmModeBal {
+					pwmModeRpio = "0"
+				} else {
+					pwmModeRpio = "1"
 				}
 
 				// if nonPwmPin is populated use it
@@ -496,17 +479,17 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 					pin = pwmPin
 				}
 				if lang == goLang {
-					msg.SetText(fmt.Sprintf("%s\nCommand line: %v\n%s%s", errTxt, buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType),
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s%s", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmModeRpio),
 						freqMsg, pinWarningText))
 				} else {
-					msg.SetText(fmt.Sprintf("%s\nCommand line: %v\n%s%s", errTxt, buildCCommand(pin, divisor, rrange, pulsewidth, pwmType,
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s%s", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType,
 						pwmMode), freqMsg, pinWarningText))
 				}
 
 				var out bytes.Buffer
 				var cmd *exec.Cmd
 				if lang == goLang {
-					cmd = exec.Command("sudo", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType)...)
+					cmd = exec.Command("sudo", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmModeRpio)...)
 				} else {
 					cmd = exec.Command("sudo", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmMode)...)
 				}
@@ -597,10 +580,6 @@ func validateInput(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth
 }
 
 func validateGo(lang, pwmPin, nonPWMPin, divisor, pwmMode, rrange, pulsewidth, pwmType string) (string, error) {
-	if lang == goLang && pwmType == hardware && pwmMode == pwmModeBal {
-		msg := "[red::b]Warning: [green::-]Go with a a PWM Type of hardware requires a PWM Mode of markspace"
-		return msg, errors.New(msg)
-	}
 	if lang == goLang && pwmType == software && pwmMode == pwmModeMS {
 		msg := "[red::b]Warning: [green::-]Go with a a PWM Type of software requires a PWM Mode of balanced"
 		return msg, errors.New(msg)

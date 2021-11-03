@@ -47,6 +47,7 @@ func main() {
 		rrange     int
 		pwmPin     int
 		pulsewidth int
+		pwmMode    int
 	)
 	pwmType := ""
 
@@ -55,10 +56,11 @@ func main() {
 	flag.IntVar(&rrange, "range", 10, "PWM range")
 	flag.IntVar(&pwmPin, "pin", 18, "BCM pin number")
 	flag.IntVar(&pulsewidth, "pulsewidth", 2, "PWM Pulse Width")
+	flag.IntVar(&pwmMode, "pwmmode", 0, "PWM Mode, rpio.Balanced or rpio.MarkSpace")
 	flag.Parse()
 
-	fmt.Printf("Using: PWM pin: %d, PWM Type: %s, freq: %d, range: %d, pulse width: %d\n",
-		pwmPin, pwmType, freq, rrange, pulsewidth)
+	fmt.Printf("Using: PWM pin: %d, PWM Type: %s, freq: %d, range: %d, pulse width: %d, pwm mode: %d\n",
+		pwmPin, pwmType, freq, rrange, pulsewidth, pwmMode)
 
 	// Obtain GPIO resources
 	if err := rpio.Open(); err != nil {
@@ -71,11 +73,11 @@ func main() {
 		return
 	}
 
-	runHardwarePwm(pwmPin, freq, uint32(rrange), uint32(pulsewidth))
+	runHardwarePwm(pwmPin, freq, uint32(rrange), uint32(pulsewidth), uint32(pwmMode))
 }
 
 // runHardwarePWM starts PWM as implemented in the board hardware.
-func runHardwarePwm(gpin, freq int, rrange, pulsewidth uint32) {
+func runHardwarePwm(gpin, freq int, rrange, pulsewidth, pwmMode uint32) {
 	// Define the pin to be used,
 	// followed by setting its mode to PWM,
 	// then set directly set the PWM Clock frequency (note lack of divisor),
@@ -84,7 +86,9 @@ func runHardwarePwm(gpin, freq int, rrange, pulsewidth uint32) {
 	pin := rpio.Pin(gpin)
 	pin.Mode(rpio.Pwm)
 	pin.Freq(freq)
-	pin.DutyCycle(pulsewidth, rrange)
+	// To test rpio.SetDutyCycle() comment out the next line and uncomment the one below it.
+	rpio.SetDutyCycleMsen(pin, pulsewidth, rrange, pwmMode)
+	//rpio.SetDutyCycle(pin, pulsewidth, rrange)
 
 	// Initialize signal handling needed to catch ctl-C
 	sigs := make(chan os.Signal, 1)
