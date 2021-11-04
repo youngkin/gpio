@@ -32,6 +32,7 @@ void ledInit(void) {
     pinMode(LedPinGreen, PWM_OUTPUT);
     pinMode(LedPinBlue, PWM_OUTPUT);
     pwmSetRange(0xff);
+    pwmSetClock(2);
 
     pwmWrite(LedPinRed, 0xff);
     pwmWrite(LedPinGreen, 0x32);
