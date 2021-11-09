@@ -3,6 +3,9 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 //
+// Credit for the majority of this code goes to Sunfounder,
+// https://docs.sunfounder.com/projects/raphael-kit/en/latest/1.1.3_led_bar_graph_c.html
+//
 // Build: gcc -o ledbargraph ledbargraph.c  -lwiringPi -lpthread
 // Run: ./ledbargraph 
 // 
