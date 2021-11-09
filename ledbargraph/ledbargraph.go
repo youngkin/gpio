@@ -100,7 +100,7 @@ func main() {
 
 	// sigs is the channel used by Go's signals capability
 	// to notify the program that a signal has been raised.
-	sigs := make(chan os.Signal, 1)
+	sigs := make(chan os.Signal)
 
 	// signal.Notify() registers the program's interest
 	// in receiving signals and provides the channel used

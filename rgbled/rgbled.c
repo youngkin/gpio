@@ -2,7 +2,11 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 //
+// Credit for the majority of this code goes to Sunfounder,
+// https://docs.sunfounder.com/projects/raphael-kit/en/latest/1.1.2_rgb_led_c.html
+//
 // Build - gcc -o rgbled rgbled.c  -lwiringPi -lpthread
+// Run - ./rgbled
 // 
 #include <wiringPi.h>
 #include <softPwm.h>
