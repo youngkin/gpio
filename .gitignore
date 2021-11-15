@@ -58,3 +58,8 @@ ledblink/doc.go
 rgbled/rgbled
 rgbled/rgbledHardware
 rgbled/resetrgb
+ledbargraph/ledbargraph
+ledblink/blinkingledpwm.c
+pwmdemo/pwmexplorer/.session.vim
+pwmdemo/pwmexplorer/apps/freqtest
+sevensegdisplay/sevensegdisplay
