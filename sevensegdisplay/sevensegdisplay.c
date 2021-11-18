@@ -277,7 +277,7 @@ int main(void){
 
 // interruptHandler catches SIGINT when ctl-C is pressed in order to halt the program gracefully.
 void interruptHandler(int sig) {
-    printf("\n!!!INTERRUPTED!!! Write '8' then exit\n");
+    printf("\n!!!INTERRUPTED!!! Write '8', clear display, then exit\n");
     toggle8();
     exit(1);
 }
