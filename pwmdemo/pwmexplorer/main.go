@@ -512,6 +512,8 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 				//				}
 				if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGINT); err != nil {
 					msg.SetText(fmt.Sprintf("Error sending interrupt signal: %s", err))
+					running = false
+					return
 				}
 				running = false
 				msg.SetText("Test stopped")
