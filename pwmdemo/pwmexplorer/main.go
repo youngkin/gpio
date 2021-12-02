@@ -366,7 +366,7 @@ func newPrimitive(text string) tview.Primitive {
 		SetText(text)
 }
 
-func buildGoCommand(pin, freq, rrange, pulsewidth, pwmType, pwmMode string) []string {
+func buildGoCommand(pin, freq, rrange, pulsewidth, pwmType string, pwmMode bool) []string {
 	if freq == "" && pwmType == software {
 		// For software PWM freq can be empty, but freqtest.go requires a valid flag value
 		// to be passed in. So set it to an arbitrary value. 5000 is good since it would
@@ -376,7 +376,7 @@ func buildGoCommand(pin, freq, rrange, pulsewidth, pwmType, pwmMode string) []st
 	return []string{"/usr/local/go/bin/go", "run", "./apps/freqtest.go",
 		fmt.Sprintf("-pin=%s", pin), fmt.Sprintf("-freq=%s", freq),
 		fmt.Sprintf("-range=%s", rrange), fmt.Sprintf("-pulsewidth=%s", pulsewidth),
-		fmt.Sprintf("-pwmType=%s", pwmType), fmt.Sprintf("-pwmmode=%s", pwmMode),
+		fmt.Sprintf("-pwmType=%s", pwmType), fmt.Sprintf("-pwmmode=%t", pwmMode),
 	}
 }
 
@@ -463,23 +463,17 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 				freqMsg := fmt.Sprintf("PWM Clock Frequency(Hz): %9.2f, GPIO Pin Frequency(Hz): %9.2f",
 					pwmClockFreq, pwmClockFreq/float32(rrangeInt))
 
-				pwmModeRpio := "0"
+				pwmModeGo := false
 				if pwmMode == pwmModeBal {
-					pwmModeRpio = "0"
-				} else {
-					pwmModeRpio = "1"
+					pwmModeGo = true
 				}
-
-				// if nonPwmPin is populated use it
-				pin := ""
-				pinWarningText := ""
+				pin := pwmPin
 				if nonPwmPin != "" {
 					pin = nonPwmPin
-				} else {
-					pin = pwmPin
 				}
+				pinWarningText := ""
 				if lang == goLang {
-					msg.SetText(fmt.Sprintf("Command line: %v\n%s%s", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmModeRpio),
+					msg.SetText(fmt.Sprintf("Command line: %v\n%s%s", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmModeGo),
 						freqMsg, pinWarningText))
 				} else {
 					msg.SetText(fmt.Sprintf("Command line: %v\n%s%s", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType,
@@ -489,7 +483,7 @@ func getButtonForm(ui *tview.Application, pwmApp *PWMApp, msg *tview.TextView) *
 				var out bytes.Buffer
 				var cmd *exec.Cmd
 				if lang == goLang {
-					cmd = exec.Command("sudo", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmModeRpio)...)
+					cmd = exec.Command("sudo", buildGoCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmModeGo)...)
 				} else {
 					cmd = exec.Command("sudo", buildCCommand(pin, divisor, rrange, pulsewidth, pwmType, pwmMode)...)
 				}
