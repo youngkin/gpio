@@ -51,7 +51,6 @@ Mkfile.old
 dkms.conf
 
 # Project Go executables
-*.swp
 pulseled/
 ledblink/blinkingled
 ledblink/doc.go
@@ -63,3 +62,9 @@ ledblink/blinkingledpwm.c
 pwmdemo/pwmexplorer/.session.vim
 pwmdemo/pwmexplorer/apps/freqtest
 sevensegdisplay/sevensegdisplay
+ledmatrixspi/leddotmatrix
+ledmatrixspi/leddotmatrixnolib
+
+# Misc
+.session.vim
+*.swp
