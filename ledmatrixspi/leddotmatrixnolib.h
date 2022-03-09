@@ -96,6 +96,10 @@ typedef enum
 
 }bcmSPIBitOrder;
 
+/* See https://pinout.xyz for pin numbering details
+ * This enum maps from the Pi pin numbering scheme to the GPIO pin numbering
+ * scheme. For example, BCM_GPIO_P1_19 maps the Pi pin 19 to the GPIO pin 10.
+ */
 typedef enum
 {
     BCM_GPIO_P1_19        = 10,  /*!< Version 1, Pin P1-19, MOSI when SPI0 in use */
@@ -190,7 +194,8 @@ typedef enum
  *  It is reported that (contrary to the documentation) any even divider may used.
  *  The frequencies shown for each divider have been confirmed by measurement on RPi1 and RPi2.
  *  The system clock frequency on RPi3 is different, so the frequency you get from a given divider will be different.
- *  See comments in 'SPI Pins' for information about reliable SPI speeds.
+ *  See comments in 'SPI Pins' for information about reliable SPI speeds. Also see
+ *  https://www.airspayce.com/mikem/bcm2835/group__constants.html#gaf2e0ca069b8caef24602a02e8a00884e for details.
  *  Note: it is possible to change the core clock rate of the RPi 3 back to 250MHz, by putting 
  *  \code
  *  core_freq=250
