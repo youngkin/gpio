@@ -68,3 +68,4 @@ ledmatrixspi/leddotmatrixnolib
 # Misc
 .session.vim
 *.swp
+tags

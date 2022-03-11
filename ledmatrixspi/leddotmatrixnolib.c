@@ -2,7 +2,8 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 //
-// Original code by Sunfounder - https://docs.sunfounder.com/projects/raphael-kit/en/latest/1.1.6_led_dot_matrix_c.html.
+// Original app code by Sunfounder - https://docs.sunfounder.com/projects/raphael-kit/en/latest/1.1.6_led_dot_matrix_c.html.
+// Original bcm_* functions and variable code by Mike McCauley at https://www.airspayce.com/mikem/bcm2835/index.html.
 // This code was modified to include details about how the code works and to handle ctl-C signal to halt the
 // program gracefully.
 //
@@ -148,7 +149,7 @@ void Init_MAX7219()
     //    Write_Max7219(0x0f,0x01);// Display test register, test mode (light all leds)
 }
 
-// Initialize the SPI interface on the BCM2835 board
+// Initialize the SPI0 interface on the BCM2835 board
 void init_spi()
 {
     bcm_spi_begin();                                    // Defines which pins will be used for SPI and sets them to SPI mode
@@ -163,6 +164,7 @@ void init_spi()
     bcm_gpio_fsel(Max7219_pinCS, BCM_GPIO_FSEL_OUTP);   // set chip select pin to OUTPUT so it can be set HIGH/LOW.
 }
 
+// NOTE: the use of the SPI0 set of pins is hardcoded (i.e., GPIO pins 7-11 are used).
 int main(void)
 {
     signal(SIGINT, interruptHandler);
@@ -178,7 +180,7 @@ int main(void)
     Delay_xms(50);
     Init_MAX7219();
     // Iterate through the disp1 array writing to the MAX7219 display driver. For each ROW written all the
-    // delay 1000ms in order to provide time to see the displayed character.
+    // delay 1000ms in order to provide time to see the character displayed on the LED Matrix display.
     while(1)
     {
         for(j=0;j<ROWS;j++)
@@ -190,8 +192,10 @@ int main(void)
             Delay_xms(1000);
         }
     }
+
+    // release resources
     bcm_spi_end();
-    bcm_close();
+    bcm_close(); // reverses bcm_init()
     return 0;
 }
 
@@ -211,15 +215,15 @@ void interruptHandler(int sig) {
 }
 
 /* Physical address and size of the peripherals block. These addresses come from /dev/devicetree and are physical
- * addresses. See the BCM2835 datasheet, section 1.2, at
+ * addresses. See the BCM2835 datasheet, section 1.2, Address map, at
  * https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf for details.
  * May be overridden on RPi2
  */
 off_t bcm_peripherals_base = BCM_PERI_BASE;
 size_t bcm_peripherals_size = BCM_PERI_SIZE;
 
-/* Virtual memory address of the mapped peripherals block. It is set from bcm_peripherals_base and 
- * bcm_peripheral_size using the mapmem() function called from bcm_init().
+/* Virtual memory address of the mapped peripherals block. It is set using bcm_peripherals_base and 
+ * bcm_peripheral_size in the mapmem() function called from bcm_init().
  */
 uint32_t *bcm_peripherals = (uint32_t *)MAP_FAILED;
 
@@ -349,7 +353,7 @@ int bcm_init(void)
             }
 #endif
             // buf offsets 0-3 contains the starting offset of the BCM2835 peripherals on the
-            // system bus. See the BCM2835 datasheet, Section 1.2, for more details
+            // system bus. See the BCM2835 datasheet, Section 1.2, Address map, for more details
             // (https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf).
             base_address = (buf[4] << 24) |
                 (buf[5] << 16) |
@@ -412,7 +416,7 @@ int bcm_init(void)
      */
     memfd = -1;
     ok = 0;
-    if (geteuid() == 0)
+    if (geteuid() == 0) // 'root'
     {
         /* Open the master /dev/mem device */
         if ((memfd = open("/dev/mem", O_RDWR | O_SYNC) ) < 0) 
@@ -520,7 +524,6 @@ void bcm_peri_set_bits(volatile uint32_t* paddr, uint32_t value, uint32_t mask)
     //       ~mask      = 1111 0011
     //       v&~mask    = 1100 0011 // resets any of the bits in 'v' to be reset by 'value' (e.g., bits 2 & 3)
     //       value&mask = 0000 0100 // provides the new values for the bits specified in 'mask' (e.g., 2 & 3)
-    //
     //       (v&~mask) | (value&mask) = 1100 0111 // results in the new value, bit 3 set to 0 and bit 2 set to 1
     //
     v = (v & ~mask) | (value & mask);
@@ -530,9 +533,10 @@ void bcm_peri_set_bits(volatile uint32_t* paddr, uint32_t value, uint32_t mask)
 
 /* Function select
 // pin is a BCM2835 GPIO pin number NOT RPi pin number
-// There are 6 control registers, each control the functions of a block
-//      of 10 pins.
-//      Each control register has 10 sets of 3 bits per GPIO pin:
+// See https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf, section 6, GPIO, for details.
+// There are 6 control registers (section 6, Register View table), each control the functions of a block
+//      of 10 pins (table 6.1, GPIO Function Select Registers).
+//      Each control register has 10 sets of 3 bits per GPIO pin, 32 bits per control register:
 //
 //      000 = GPIO Pin X is an input
 //      001 = GPIO Pin X is an output
@@ -543,12 +547,37 @@ void bcm_peri_set_bits(volatile uint32_t* paddr, uint32_t value, uint32_t mask)
 //      011 = GPIO Pin X takes alternate function 4
 //      010 = GPIO Pin X takes alternate function 5
 //
-// So the 3 bits for port X are:
-//      X / 10 + ((X % 10) * 3)
+// So the offset for the 3 bits for port X are:
+//      (BCM_GPFSEL0/4) 0 + X / 10 + ((X % 10) * 3) (e.g., GPIO pin 19's offset is 28 from the beginning of 
+//      GPIO Alternate function select register 1, register offset 27)
 */
 void bcm_gpio_fsel(uint8_t pin, uint8_t mode)
 {
-    /* Function selects are 10 pins per 32 bit word, 3 bits per pin */
+    // Example with GPIO pin 10 (BCM_GPIO_P1_19 is GPIO pin 10) which is the MOSI pin at GPFSEL1 (BCM_GPFSEL0 + 0x4)
+    // See the GPIO Register address space - section 6.1, Register view, in the BCM2835 datasheet - 
+    // https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf.
+    //
+    // NOTE: BCM_GPFSEL0 (0x0) is still used in the offset calculations below. pin#/10 steps the address forward
+    // as necessary (e.g., (pin)9/10=0, (pin)19/10=1, and so on steps the address forward to the appropriate
+    // GPIO Function Select register)
+    //      10(pin)/10 = 1
+    //          paddr = bcm_gpio + 1 + 0( (BCM_GPFSEL0 + 0x0)/4 )
+    //      10(pin)%10 = 0
+    //      shift = 0(from previous calc)*3 = 0
+    //      GPIO_FSEL_MASK = 0111 (0x7)
+    //      mask    = 0000 0000 0000 0000 0000 0000 0000 0111 (shifted left by 0 bits)
+    //      mode    = 0000 0000 0000 0000 0000 0000 0000 0100 ==> BCM_GPIO_FSEL_ALT0 (0x4)
+    //      new
+    //      value   = 0000 0000 0000 0000 0000 0000 0000 0100
+    //      current 
+    //      value   = 0000 0000 0000 0000 0000 0000 1111 0000
+    //      -------------------------------------------------
+    //      result  = 0000 0000 0000 0000 0000 0000 1111 0100 (in GPIO Alt function register 1 after bcm_peri_set_bits())
+    //
+    // So, GPIO pin 10 is in GPIO Alt function select register 1 which is at an offset of 0x4 or
+    // the second 32 bit block from bcm_gpio. GPIO pin 10 function settings are at bit offsets
+    // 0-2. 'value' above, coupled with 'mask', will set bits 0-2 to 100 in function select register 1
+    // which corresponds to ALT0 on GPIO pin 10.
     volatile uint32_t* paddr = bcm_gpio + BCM_GPFSEL0/4 + (pin/10);
     uint8_t   shift = (pin % 10) * 3;
     uint32_t  mask = BCM_GPIO_FSEL_MASK << shift;
@@ -556,6 +585,7 @@ void bcm_gpio_fsel(uint8_t pin, uint8_t mode)
     bcm_peri_set_bits(paddr, value, mask);
 }
 
+// MSB or LSB (BCM2835 only accepts MSB but bcm_correct_order() is used to ensure this)
 void bcm_spi_setBitOrder(uint8_t order)
 {
     bcm_spi_bit_order = order;
@@ -642,9 +672,7 @@ void bcm_peri_write_nb(volatile uint32_t* paddr, uint32_t value)
     *paddr = value;
 }
 
-/* Read with memory barriers from peripheral
- *
- */
+/* Read with memory barriers from peripheral */
 uint32_t bcm_peri_read(volatile uint32_t* paddr)
 {
     uint32_t ret;
@@ -656,18 +684,18 @@ uint32_t bcm_peri_read(volatile uint32_t* paddr)
 }
 
 /* read from peripheral without the read barrier
- *  * This can only be used if more reads to THE SAME peripheral
- *   * will follow.  The sequence must terminate with memory barrier
- *    * before any read or write to another peripheral can occur.
- *     * The MB can be explicit, or one of the barrier read/write calls.
- *      */
+ * This can only be used if more reads to THE SAME peripheral
+ * will follow.  The sequence must terminate with memory barrier
+ * before any read or write to another peripheral can occur.
+ * The MB can be explicit, or one of the barrier read/write calls.
+ */
 uint32_t bcm_peri_read_nb(volatile uint32_t* paddr)
 {
     return *paddr;
 }
 
 
-/* Set the state of an output */
+/* Set the state of an output pin (e.g., HIGH or LOW voltage) */
 void bcm_gpio_write(uint8_t pin, uint8_t on)
 {
     if (on)
@@ -677,7 +705,7 @@ void bcm_gpio_write(uint8_t pin, uint8_t on)
 
 }
 
-/* Set output pin */
+/* Set output pin to HIGH voltage */
 void bcm_gpio_set(uint8_t pin)
 {
     volatile uint32_t* paddr = bcm_gpio + BCM_GPSET0/4 + pin/32;
@@ -686,7 +714,7 @@ void bcm_gpio_set(uint8_t pin)
 
 }
 
-/* Clear output pin */
+/* Clear output pin (i.e., to LOW voltage) */
 void bcm_gpio_clr(uint8_t pin)
 {
     volatile uint32_t* paddr = bcm_gpio + BCM_GPCLR0/4 + pin/32;
@@ -715,17 +743,18 @@ uint8_t bcm_spi_transfer(uint8_t value)
     volatile uint32_t* fifo = bcm_spi0 + BCM_SPI0_FIFO/4;
     uint32_t ret;
 
-    /* This is Polled transfer as per section 10.6.1
+    /* This is Polled transfer as per section 10.6.1 in the BCM2835 datasheet at
+     * https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
      * BUG ALERT: what happens if we get interupted in this section, and someone else
      * accesses a different peripheral? 
      * Clear TX and RX fifos
      **/
     bcm_peri_set_bits(paddr, BCM_SPI0_CS_CLEAR, BCM_SPI0_CS_CLEAR);
 
-    /* Set TA = 1 */
+    /* Set TA = 1, data transfer is active */
     bcm_peri_set_bits(paddr, BCM_SPI0_CS_TA, BCM_SPI0_CS_TA);
 
-    /* Maybe wait for TXD */
+    /* Maybe wait for TXD (e.g., if it can't accept any data because the FIFO is full) */
     while (!(bcm_peri_read(paddr) & BCM_SPI0_CS_TXD))
         ;
 
@@ -739,11 +768,9 @@ uint8_t bcm_spi_transfer(uint8_t value)
     /* Read any byte that was sent back by the slave while we sere sending to it */
     ret = bcm_correct_order(bcm_peri_read_nb(fifo));
 
-    /* Set TA = 0, and also set the barrier */
+    /* Set TA = 0 (transfer is finished), and also set the barrier */
     bcm_peri_set_bits(paddr, 0, BCM_SPI0_CS_TA);
 
     return ret;
 }
-
-
 

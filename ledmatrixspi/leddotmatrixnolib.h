@@ -1,15 +1,17 @@
-/*
- * Definitions/declarations for the Broadcomm BCM2835 GPIO board.
- * These are a subset of bcm2835.h from the BCM2835 library at
- * https://www.airspayce.com/mikem/bcm2835/bcm2835_8h_source.html.
- *
- * Defines and typedef prefixes were changed from BCM2835 to either 
- * omit the prefix altogether (e.g., GPIO_P1_19) or to modify it to
- * 'BCM'. This was done to avoid accidental conflicts with the definitions
- * and declarations in bcm2835.h.
- * 
- */
-
+// Copyright (c) 2021 Richard Youngkin. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+//
+//  This is a highly modified version of the bcm2835.h from the BCM2835 C library by
+//  Mice McCauley. See https://www.airspayce.com/mikem/bcm2835/index.html for the original.
+//
+//  The modifications include renaming the variables and #defines to avoid conflicts with the
+//  original library. The file was also modified to keep only the #defines, enums, and typedefs
+//  needed by this project. The point of this project is to demonstrate how to program the BCM2835
+//  board directly without using any libraries (like the BCM2835 library). The original code has
+//  also been extensively commented in order to explain to newcomers to BCM2835 board 
+//  programming what is going on.
+//
 /* Defines for BCM */
 #ifndef BCM_H
 #define BCM_H
@@ -20,13 +22,7 @@
 #define uchar unsigned char
 #define uint unsigned int
 
-// Define this if you want to use libcap2 to determine if you have the cap_sys_rawio capability
-// and therefore the capability of opening /dev/mem, even if you are not root.
-// See the comments above in the documentation for 'Running As Root'
-//#define BCM_HAVE_LIBCAP
-//
-
-/*! On all recent OSs, the base of the peripherals is read from a /proc file */
+/*! On all recent OSs, the base physical address of the peripherals is read from a /proc file */
 #define BCM_RPI2_DT_FILENAME "/proc/device-tree/soc/ranges"
 
 /*! This means pin HIGH, true, 3.3volts on a pin. */
@@ -51,9 +47,9 @@
 /*! Alternate size for RPI  4 */
 #define BCM_RPI4_PERI_SIZE          0x01800000
 
-/*! Offsets for the bases of various peripherals within the peripherals block
- *  *   /   Base Address of the System Timer registers
- *   *   */
+/*! Offsets for the bases of various peripherals within the peripherals block */
+
+/*   Base Address of the System Timer registers */
 #define BCM_ST_BASE                 0x3000
 /*! Base Address of the Pads registers */
 #define BCM_GPIO_PADS               0x100000
@@ -78,17 +74,18 @@
 
 /* Defines for GPIO
  *    The BCM2835 has 54 GPIO pins.
- *       BCM2835 data sheet, Page 90 onwards.
- *       */
+ *    BCM2835 data sheet, Page 90 onwards - https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
+ */
 /*! GPIO register offsets from BCM_GPIO_BASE. 
  *   Offsets into the GPIO Peripheral block in bytes per 6.1 Register View 
- *   */
+ */
 #define BCM_GPFSEL0                      0x0000 /*!< GPIO Function Select 0 */
 #define BCM_GPSET0                       0x001c /*!< GPIO Pin Output Set 0 */
 #define BCM_GPCLR0                       0x0028 /*!< GPIO Pin Output Clear 0 */
+
 /*! \brief bcmSPIBitOrder SPI Bit order
  *   Specifies the SPI data bit ordering for bcm_spi_setBitOrder()
- *   */
+ */
 typedef enum
 {
     BCM_SPI_BIT_ORDER_LSBFIRST = 0,  /*!< LSB First */
@@ -125,9 +122,10 @@ typedef enum
 } bcmFunctionSelect;
 
 /* Defines for SPI
- *    GPIO register offsets from BCM_SPI0_BASE. 
- *       Offsets into the SPI Peripheral block in bytes per 10.5 SPI Register Map
- *       */
+ * GPIO register offsets from BCM_SPI0_BASE. 
+ * Offsets into the SPI Peripheral block in bytes per 10.5 SPI Register Map
+ *  https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
+ */
 #define BCM_SPI0_CS                      0x0000 /*!< SPI Master Control and Status */
 #define BCM_SPI0_FIFO                    0x0004 /*!< SPI Master TX and RX FIFOs */
 #define BCM_SPI0_CLK                     0x0008 /*!< SPI Master Clock Divider */
@@ -135,7 +133,7 @@ typedef enum
 #define BCM_SPI0_LTOH                    0x0010 /*!< SPI LOSSI mode TOH */
 #define BCM_SPI0_DC                      0x0014 /*!< SPI DMA DREQ Controls */
 
-/* Register masks for SPI0_CS */
+/* Register masks for SPI0_CS (Master control & status) */
 #define BCM_SPI0_CS_LEN_LONG             0x02000000 /*!< Enable Long data word in Lossi mode if DMA_LEN is set */
 #define BCM_SPI0_CS_DMA_LEN              0x01000000 /*!< Enable DMA mode in Lossi mode */
 #define BCM_SPI0_CS_CSPOL2               0x00800000 /*!< Chip Select 2 Polarity */
@@ -165,7 +163,8 @@ typedef enum
 
 /*! \brief SPI Data mode
  *   Specify the SPI data mode to be passed to bcm_spi_setDataMode()
- *   */
+ *   (clock polarity and phase).
+ */
 typedef enum
 {
     BCM_SPI_MODE0 = 0,  /*!< CPOL = 0, CPHA = 0 */
@@ -176,7 +175,7 @@ typedef enum
 }bcmSPIMode;
 
 /*! \brief bcmSPIChipSelect
- *   Specify the SPI chip select pin(s)
+ *   Specify the SPI chip select pin(s) (GPIO poins 7 & 8, SPI0CE1 & SPICE0)
  *   */
 typedef enum
 {
@@ -291,22 +290,47 @@ extern volatile uint32_t *bcm_spi1;
  */
 extern void bcm_spi_setDataMode(uint8_t mode);
 
-#define Max7219_pinCS  BCM_GPIO_P1_24 // Pi pin 24, GPIO pin 8 - from bcm2835.h
-#define ROWS 37
-#define COLS 8
+#define Max7219_pinCS  BCM_GPIO_P1_24 /* Pi pin 24, GPIO pin 8 - from bcm2835.h */
+#define ROWS 37 /* number of characters to display on the LED matrix */
+#define COLS 8 /* LED matrix row values (i.e., which LEDs to light on a given matrix row) */
 
+/* Gracefully handle interrupts, releases all resources prior to exiting */
 void interruptHandler(int);
+
+/* Sets bit values in the various BCM2835 registers */
 void bcm_peri_set_bits(volatile uint32_t*, uint32_t, uint32_t);
+
+/* Sets the function of a given pin (e.g., ALT0) */
 void bcm_gpio_fsel(uint8_t, uint8_t);
+
+/* Writes data to a peripheral with memory barrier (e.g., and LED matrix) */
 void bcm_peri_write(volatile uint32_t*, uint32_t);
+
+/* Writes data to a peripheral without a memory barrier (e.g., and LED matrix) */
 void bcm_peri_write_nb(volatile uint32_t*, uint32_t);
+
+/* reads data from a peripheral */
 uint32_t bcm_peri_read(volatile uint32_t*);
+
+/* sets a GPIO pin to HIGH voltage */
 void bcm_gpio_set(uint8_t);
+
+/* sets the GPIO pin to LOW voltage */
 void bcm_gpio_clr(uint8_t);
+
+/* delays execution until the specified milliseconds have passed */
 void bcm_delay(unsigned int);
+
+/* initializes gpio pins to function in SPI mode */
 int bcm_spi_begin(void);
+
+/* initializes the BCM2835 board */
 int bcm_init(void);
+
+/* resets gpio pins back to input state */
 void bcm_spi_end(void);
+
+/* releases mapped memory and resets bcm memory addresses to default values */
 int bcm_close(void);
 
 /*! Transfers one byte to and from the currently selected SPI slave.
@@ -321,7 +345,10 @@ int bcm_close(void);
  */
 extern uint8_t bcm_spi_transfer(uint8_t value);
 
+/* sets the SPI interface to LSB or MSB */
 void bcm_spi_setBitOrder(uint8_t);
+
+/* sets the SPI clock frequency (divides the RPi clock speed by the specified divisor) */
 void bcm_spi_setClockDivider(uint16_t);
 
 
