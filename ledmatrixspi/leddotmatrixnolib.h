@@ -291,8 +291,9 @@ extern volatile uint32_t *bcm_spi1;
 extern void bcm_spi_setDataMode(uint8_t mode);
 
 #define Max7219_pinCS  BCM_GPIO_P1_24 /* Pi pin 24, GPIO pin 8 - from bcm2835.h */
-#define ROWS 37 /* number of characters to display on the LED matrix */
-#define COLS 8 /* LED matrix row values (i.e., which LEDs to light on a given matrix row) */
+#define NUM_CHARS 37 /* number of characters to display on the LED matrix */
+#define MATRIX_ROW 8 /* LED matrix row values (i.e., which LEDs to light on a given matrix row) to create a character */
+#define NUM_SCROLL 64 /* Scrolling display */
 
 /* Gracefully handle interrupts, releases all resources prior to exiting */
 void interruptHandler(int);
