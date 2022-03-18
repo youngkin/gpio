@@ -21,6 +21,7 @@
 *.a
 *.la
 *.lo
+*.o
 
 # Shared objects (inc. Windows DLLs)
 *.dll
@@ -50,8 +51,9 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Project Go executables
+# Project executables
 pulseled/
+ledblink/lednolib
 ledblink/blinkingled
 ledblink/doc.go
 rgbled/rgbled
