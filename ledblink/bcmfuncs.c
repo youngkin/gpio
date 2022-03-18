@@ -2,22 +2,18 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 //
-// Original app code by Sunfounder - https://docs.sunfounder.com/projects/raphael-kit/en/latest/1.1.6_led_dot_matrix_c.html.
 // Original bcm_* functions and variable code by Mike McCauley at https://www.airspayce.com/mikem/bcm2835/index.html.
-// This code was modified to include details about how the code works and to handle ctl-C signal to halt the
-// program gracefully.
+// This code was modified to include details about how the code works.
 //
 // This program demonstrates controlling a MAX7219 LED display by causing it to display
 // the numbers 0-9 and the letters A-Z.
-//
-// NOTE: There is inadequate error handling in the application. Take care when copying.
 //
 // References:
 //  1. https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf - MAX7219 LED display datasheet
 //  2. https://www.airspayce.com/mikem/bcm2835/index.html - BCM2835 library documentation
 //
-// Build: gcc -o leddotmatrixnolib leddotmatrixnolib.c  
-// Build DEBUG version: gcc -o leddotmatrixnolib leddotmatrixnolib.c  -D DEBUG 
+// Build: make all
+// Build DEBUG version: gcc -c -o bcmfuncs.o  bcmfuncs.c -D DEBUG 
 
 #include "bcmfuncs.h"
 #include <stdlib.h>

@@ -16,6 +16,7 @@
 //  1. https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf - MAX7219 LED display datasheet
 //  2. https://www.airspayce.com/mikem/bcm2835/index.html - BCM2835 library documentation
 //
+// Build bcmfuncs.o: cd ../ledblink;make all
 // Build: gcc -o leddotmatrixnolib leddotmatrixnolib.c  ../ledblink/bcmfuncs.o
 // Build DEBUG version: gcc -o leddotmatrixnolib leddotmatrixnolib.c  ../ledblink/bcmfuncs.o -D DEBUG 
 

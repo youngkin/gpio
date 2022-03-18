@@ -16,8 +16,7 @@
 //  1. https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf - MAX7219 LED display datasheet
 //  2. https://www.airspayce.com/mikem/bcm2835/index.html - BCM2835 library documentation
 //
-// Build: gcc -o leddotmatrixnolib leddotmatrixnolib.c  
-// Build DEBUG version: gcc -o leddotmatrixnolib leddotmatrixnolib.c  -D DEBUG 
+// Build: make all
 
 #include "bcmfuncs.h"
 #include <stdlib.h>
@@ -35,13 +34,14 @@
 #define uchar unsigned char
 #define uint unsigned int
 
-// ROWS represents a specific character to create on the LED matrix display.
-// COLS contains the hex representation to create a display character. Each hex character
-// defines which LEDs to turn on in each row of the LED matrix. In the first ROW of the
+// NUM_CHARS represents a specific character to create on the LED matrix display. `disp1[NUM_CHARS]` 
+// contains the specification of characters 0-9, A-Z, and the greek theta character.
+// MATRIX_ROW contains the hex representation to create a display character. Each hex character
+// defines which LEDs to turn on in each row of the LED matrix. In the first row  of the `disp1`
 // array 0x3C is represented in binary as 0011 1100. This will cause the middle 4 LEDS in the
 // first LED matrix display row to be lit and the 2 LEDS closest to each edge will be unlit. 
 // 0x42 (0100 0010) specifies the LEDs to be lit in the second row of the LED Matrix display. 
-// And so on for the remaining characters in the first ROW of the array until each of the rows 
+// And so on for the remaining characters in the first NUM_CHARS of the array until each of the rows 
 // of the LED Matrix display have been set. The characters in this array row in binary represent the 
 // following character in the LED Matrix display. In the representation below the 0's are replaced 
 // with spaces:
