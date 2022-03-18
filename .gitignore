@@ -53,6 +53,7 @@ dkms.conf
 
 # Project executables
 pulseled/
+ledblink/blinkinglednolib
 ledblink/lednolib
 ledblink/blinkingled
 ledblink/doc.go
