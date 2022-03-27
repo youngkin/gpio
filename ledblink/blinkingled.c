@@ -29,8 +29,8 @@ int main(void) {
     pinMode(LEDPIN, OUTPUT);
 
     // Comment for... and uncomment while... to run loop continuously
-    for (int i = 0; i < 5; i++) {
-    //while(1) {
+//    for (int i = 0; i < 5; i++) {
+    while(1) {
         // Setting the GPIO pin to LOW allows current to flow from the power source thru 
         // the anode to cathode turning on the LED.
         digitalWrite(LEDPIN, LOW); // LED on

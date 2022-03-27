@@ -1,13 +1,16 @@
-##lednolib: blinkinglednolib.o bcmfuncs.o
-##		gcc -o blinkinglednolib blinkinglednolib.o bcmfuncs.o
+matrixlednolib: matrixlednolib.c bcmfuncs.h
+		gcc -g -o matrixlednolib matrixlednolib.c bcmfuncs.o
 
-lednolib: blinkinglednolib.c bcmfuncs.h
-		gcc -g -o lednolib blinkinglednolib.c bcmfuncs.o
+blinkinglednolib: blinkinglednolib.c bcmfuncs.h
+		gcc -g -o blinkinglednolib blinkinglednolib.c bcmfuncs.o
+
+blinkingled: blinkingled.c bcmfuncs.h
+		gcc blinkingled.c -o blinkingled -lwiringPi
 
 bcmlib: bcmfuncs.h bcmfuncs.c
 		gcc -c -g bcmfuncs.c
 
 clean: 
-		rm -rf bcmfuncs.o lednolib
+		rm -rf bcmfuncs.o matrixlednolib blinkinglednolib blinkingled
 
-all: bcmlib lednolib
+all: bcmlib matrixlednolib blinkingled blinkinglednolib

@@ -56,7 +56,7 @@ pulseled/
 ledblink/blinkinglednolib
 ledblink/lednolib
 ledblink/blinkingled
-ledblink/doc.go
+ledblink/matrixlednolib
 rgbled/rgbled
 rgbled/rgbledHardware
 rgbled/resetrgb
