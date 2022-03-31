@@ -166,9 +166,6 @@ int bcm_init(void)
                 printf("device tree soc/ranges property buf[%d]: %#06x\n", i, buf[i]);
             }
 #endif
-            // buf offsets 0-3 contains the starting offset of the BCM2835 peripherals on the
-            // system bus. See the BCM2835 datasheet, Section 1.2, Address map, for more details
-            // (https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf).
             base_address = (buf[4] << 24) |
                 (buf[5] << 16) |
                 (buf[6] << 8) |
@@ -193,9 +190,10 @@ int bcm_init(void)
                     (buf[15] << 0);
 
             }
-            /* check for valid known range formats. The starting offset of the
-             * peripheral bus address range should be 0x7e000000. 
-             */
+            // buf offsets 0-3 contains the starting offset of the BCM2835 peripherals on the
+            // system bus. See the BCM2835 datasheet, Section 1.2, Address map, for more details
+            // (https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf).
+            // Verify that the starting offset of the peripheral buss is 0x7e000000 as documented above.
             if ((buf[0] == 0x7e) &&
                     (buf[1] == 0x00) &&
                     (buf[2] == 0x00) &&
@@ -248,9 +246,11 @@ int bcm_init(void)
         /* Now compute the base addresses of various peripherals, 
          * which are at fixed offsets within the mapped peripherals block
          *
-         * The address offsets in the SPI address map are specified in bytes.
-         * Since the offsets below are defined as uint32_t's, and that's 4 bytes, all of
-         * offsets have to be divided by 4 to get the uint32_t offset.
+         * The offsets below are defined as uint32_t's. Access to the registers is done via
+         * pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+         * variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+         * by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be 
+         * divided by 4 to account for how pointer arithmetic works on uint32_t's.
          */
         bcm_gpio = bcm_peripherals + BCM_GPIO_BASE/4;
 #ifdef DEBUG
@@ -392,6 +392,13 @@ void bcm_gpio_fsel(uint8_t pin, uint8_t mode)
     // the second 32 bit block from bcm_gpio. GPIO pin 10 function settings are at bit offsets
     // 0-2. 'value' above, coupled with 'mask', will set bits 0-2 to 100 in function select register 1
     // which corresponds to ALT0 on GPIO pin 10.
+    //
+    //  The offsets below are defined as uint32_t's. Access to the registers is done via
+    //  pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+    //  variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+    //  by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be
+    //  divided by 4 to account for how pointer arithmetic works on uint32_t's.
+
     volatile uint32_t* paddr = bcm_gpio + BCM_GPFSEL0/4 + (pin/10);
     uint8_t   shift = (pin % 10) * 3;
     uint32_t  mask = BCM_GPIO_FSEL_MASK << shift;
@@ -413,9 +420,13 @@ void bcm_spi_setBitOrder(uint8_t order)
  */
 void bcm_spi_setClockDivider(uint16_t divider)
 {
-    // SPI register address map offsets are specified in bytes and the associated offsets
-    // in the program are specified as uint32_t or 4 bytes. Dividing by 4 is
-    // therefore needed to get the 4 byte offset into the register address map.
+    /*
+     * The offsets below are defined as uint32_t's. Access to the registers is done via
+     * pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+     * variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+     * by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be 
+     * divided by 4 to account for how pointer arithmetic works on uint32_t's.
+     */
     volatile uint32_t* paddr = bcm_spi0 + BCM_SPI0_CLK/4;
     bcm_peri_write(paddr, divider);
 }
@@ -423,6 +434,11 @@ void bcm_spi_setClockDivider(uint16_t divider)
 /* Set Clock Polarity and Phase. */ 
 void bcm_spi_setDataMode(uint8_t mode)
 {
+    //  The offsets below are defined as uint32_t's. Access to the registers is done via
+    //  pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+    //  variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+    //  by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be
+    //  divided by 4 to account for how pointer arithmetic works on uint32_t's.
     volatile uint32_t* paddr = bcm_spi0 + BCM_SPI0_CS/4;
     /* Mask in the CPO and CPHA bits of CS */
     bcm_peri_set_bits(paddr, mode << 2, BCM_SPI0_CS_CPOL | BCM_SPI0_CS_CPHA);
@@ -446,10 +462,12 @@ int bcm_spi_begin(void) {
     bcm_gpio_fsel(BCM_GPIO_P1_19, BCM_GPIO_FSEL_ALT0); /* MOSI */
     bcm_gpio_fsel(BCM_GPIO_P1_23, BCM_GPIO_FSEL_ALT0); /* CLK */
 
-    /* Set the SPI CS register to the some sensible defaults. The address offsets
-     * in the SPI address map are specified in bytes.
-     * Since BCM_SPIO_CS is defined as a uint32_t, and that's 4 bytes, BCM_SPI0_CS
-     * has to be divided by 4 to get the uint32_t offset.
+    /* Set the SPI CS register to the some sensible defaults.
+     * The offsets below are defined as uint32_t's. Access to the registers is done via
+     * pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+     * variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+     * by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be 
+     * divided by 4 to account for how pointer arithmetic works on uint32_t's.
      */
     paddr = bcm_spi0 + BCM_SPI0_CS/4;
     bcm_peri_write(paddr, 0); /* All 0s */
@@ -522,6 +540,11 @@ void bcm_gpio_write(uint8_t pin, uint8_t on)
 /* Set output pin to HIGH voltage */
 void bcm_gpio_set(uint8_t pin)
 {
+    //  The offsets below are defined as uint32_t's. Access to the registers is done via
+    //  pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+    //  variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+    //  by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be
+    //  divided by 4 to account for how pointer arithmetic works on uint32_t's.
     volatile uint32_t* paddr = bcm_gpio + BCM_GPSET0/4 + pin/32;
     uint8_t shift = pin % 32;
     bcm_peri_write(paddr, 1 << shift);
@@ -531,6 +554,11 @@ void bcm_gpio_set(uint8_t pin)
 /* Clear output pin (i.e., to LOW voltage) */
 void bcm_gpio_clr(uint8_t pin)
 {
+    //  The offsets below are defined as uint32_t's. Access to the registers is done via
+    //  pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+    //  variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+    //  by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be
+    //  divided by 4 to account for how pointer arithmetic works on uint32_t's.
     volatile uint32_t* paddr = bcm_gpio + BCM_GPCLR0/4 + pin/32;
     uint8_t shift = pin % 32;
     bcm_peri_write(paddr, 1 << shift);
@@ -553,6 +581,11 @@ void bcm_delay(unsigned int millis)
 /* Writes (and reads) a single byte to SPI */
 uint8_t bcm_spi_transfer(uint8_t value)
 {
+    //  The offsets below are defined as uint32_t's. Access to the registers is done via
+    //  pointer arithmetic. How pointer arithmetic works is dependent on the type of the pointer
+    //  variable being acted upon. For uint32_t types, they're 4 bytes, so pointers will be adjusted
+    //  by 4 bytes with each operation. Given this, all offsets, which are in bytes, need to be
+    //  divided by 4 to account for how pointer arithmetic works on uint32_t's.
     volatile uint32_t* paddr = bcm_spi0 + BCM_SPI0_CS/4;
     volatile uint32_t* fifo = bcm_spi0 + BCM_SPI0_FIFO/4;
     uint32_t ret;

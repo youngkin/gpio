@@ -14,14 +14,6 @@
 #include "bcmfuncs.h"
 #include <stdlib.h>
 #include <stdio.h>
-// #include <errno.h>
-// #include <fcntl.h>
-// #include <sys/mman.h>
-// #include <string.h>
-// #include <time.h>
-// #include <unistd.h>
-// #include <sys/types.h>
-// #include <ctype.h>
 #include <signal.h>
 
 #define LEDPIN 17 // BCM GPIO pin 17
