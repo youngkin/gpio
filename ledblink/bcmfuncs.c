@@ -1,12 +1,10 @@
-// Copyright (c) 2021 Richard Youngkin. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
+// Author: Mike McCauley
+// Changes by Rich Youngkin
+// Copyright (C) 2011-2013 Mike McCauley
+//
 //
 // Original bcm_* functions and variable code by Mike McCauley at https://www.airspayce.com/mikem/bcm2835/index.html.
 // This code was modified to include details about how the code works.
-//
-// This program demonstrates controlling a MAX7219 LED display by causing it to display
-// the numbers 0-9 and the letters A-Z.
 //
 // References:
 //  1. https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf - MAX7219 LED display datasheet

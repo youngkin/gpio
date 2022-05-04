@@ -11,12 +11,13 @@
 // the numbers 0-9 and the letters A-Z.
 //
 // NOTE: There is inadequate error handling in the application. Take care when copying.
+// NOTE: This program requires the BCM2835 library. See reference 2 for details.
 //
 // References:
 //  1. https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf - MAX7219 LED display datasheet
 //  2. https://www.airspayce.com/mikem/bcm2835/index.html - BCM2835 library documentation
 //
-// Build: gcc -o ledmatrixspi ledmatrixspi.c  -lbcm2835 -lpthread
+// Build: gcc -o leddotmatrix leddotmatrix.c  -lbcm2835
 // Run: sudo ./ledmatrixspi
 
 #include <bcm2835.h>

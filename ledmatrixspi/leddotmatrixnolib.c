@@ -230,8 +230,7 @@ void init_spi()
                                                         // (Alternate function 0).
     bcm_spi_setBitOrder(BCM_SPI_BIT_ORDER_MSBFIRST);    // Using most significant bit ordering. The MAX7219 uses MSB ordering.
                                                         // See https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf,
-                                                        // see Table 1 page 6, for more details. More importantly, the BCM2835
-                                                        // board only supports MSB addressing.
+                                                        // see Table 1 page 6, for more details. 
     bcm_spi_setDataMode(BCM_SPI_MODE0);                 // Set clock polarity and phase. Mostly don't worry about this.
     bcm_spi_setClockDivider(BCM_SPI_CLOCK_DIVIDER_256); // Set the clock speed. Mostly don't worry about this.
                                                         // See leddotmatrixnolib.h for details.
