@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Richard Youngkin. All rights reserved.
-// Use of this source code is governed by a MIT-style
+// Use of this source code is governed by the GPL 3.0
 // license that can be found in the LICENSE file.
 //
 // Hardware PWM pins include WiringPi pins 1, 26, 23, 24 (BCM 18, 12, 13, and 19 respectively).

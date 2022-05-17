@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2021 Richard Youngkin. All rights reserved.
-// Use of this source code is governed by a MIT-style
+// Use of this source code is governed by the GPL 3.0
 // license that can be found in the LICENSE file.
 //
 // Original code by Sunfounder - https://docs.sunfounder.com/projects/raphael-kit/en/latest/1.1.6_led_dot_matrix_c.html.

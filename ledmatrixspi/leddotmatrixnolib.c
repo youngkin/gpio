@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Richard Youngkin. All rights reserved.
-// Use of this source code is governed by a MIT-style
+// Use of this source code is governed by the GPL 3.0
 // license that can be found in the LICENSE file.
 //
 // Original app code by Sunfounder - https://docs.sunfounder.com/projects/raphael-kit/en/latest/1.1.6_led_dot_matrix_c.html.
@@ -36,8 +36,8 @@
 #define uchar unsigned char
 #define uint unsigned int
 
-// ROWS represents a specific character to create on the LED matrix display.
-// COLS contains the hex representation to create a display character. Each hex character
+// NUM_CHARS represents a specific character to create on the LED matrix display.
+// MATRIX_ROW contains the hex representation to create a display character. Each hex character
 // defines which LEDs to turn on in each row of the LED matrix. In the first ROW of the
 // array 0x3C is represented in binary as 0011 1100. This will cause the middle 4 LEDS in the
 // first LED matrix display row to be lit and the 2 LEDS closest to each edge will be unlit. 

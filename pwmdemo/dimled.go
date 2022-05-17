@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Richard Youngkin. All rights reserved.
-// Use of this source code is governed by a MIT-style
+// Use of this source code is governed by the GPL 3.0
 // license that can be found in the LICENSE file.
 //
 // This program uses a direct implementation of software PWM to vary

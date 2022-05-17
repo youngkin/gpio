@@ -1,6 +1,7 @@
 //
 // Copyright (c) 2021 Richard Youngkin. All rights reserved.
-// See the LICENSE file for details.
+// Use of this source file is governed by the GPL 3.0 license which
+// can be found in the LICENSE file.
 //
 // Run using 'go run leddotmatrix.go'
 //
@@ -17,10 +18,32 @@ import (
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
-const csPin = rpio.Pin(uint8(8))
-const ROWS = 37
-const COLS = 8
+const csPin = rpio.Pin(uint8(8)) //csPin represents the chip select pin and specifies it is on GPIO pin 8
+const NUM_CHARS = 37             // Number of characters that can be displayed
+const MATRIX_ROW = 8             // The number of rows of LEDs on the MAX7219
 
+// NUM_CHARS represents a specific character to create on the LED matrix display.
+// MATRIX_ROW contains the hex representation to create a display character. Each hex character
+// defines which LEDs to turn on in each row of the LED matrix. In the first ROW of the
+// array 0x3C is represented in binary as 0011 1100. This will cause the middle 4 LEDS in the
+// first LED matrix display row to be lit and the 2 LEDS closest to each edge will be unlit.
+// 0x42 (0100 0010) specifies the LEDs to be lit in the second row of the LED Matrix display.
+// And so on for the remaining characters in the first ROW of the array until each of the rows
+// of the LED Matrix display have been set. The characters in this array row in binary represent the
+// following character in the LED Matrix display. In the representation below the 0's are replaced
+// with spaces:
+//
+//    1111
+//   1    1
+//   1    1
+//   1    1
+//   1    1
+//   1    1
+//   1    1
+//    1111
+//
+//  If you follow the pattern of 1's in the above rows you can see that they represent the
+//  number 0. Recall that spaces replaced 0's.
 var disp1 = [][]byte{
 	{0x3C, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x3C}, //0
 	{0x08, 0x18, 0x28, 0x08, 0x08, 0x08, 0x08, 0x08}, //1
@@ -84,13 +107,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize SPI on the SPI0 associated GPIO pins
 	if err := rpio.SpiBegin(rpio.Spi0); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	csPin.Output()
-	rpio.SpiChipSelect(uint8(csPin)) // Select CE0 as slave
+	rpio.SpiChipSelect(uint8(csPin)) // Select CE0 (csPin) as slave
 	initMax7219()
 
 	for {
@@ -98,9 +122,10 @@ func main() {
 		case <-stop:
 			break
 		default:
-			for i := 0; i < ROWS; i++ {
-				for j := 1; j < COLS+1; j++ {
-					//fmt.Printf("Write %x at address %d for i=%d and j=%d\n", disp1[i][j-1], j, i, j)
+			for i := 0; i < NUM_CHARS; i++ {
+				for j := 1; j < MATRIX_ROW+1; j++ {
+					// 'j' starts at 1 since it's also used to reference the MAX7219 display registers
+					// which start at offset 1.
 					writeMax7219(byte(j), disp1[i][j-1])
 				}
 				time.Sleep(500 * time.Millisecond)
@@ -108,7 +133,9 @@ func main() {
 			break
 		}
 	}
+	// Reset the SPI0 pins back to INPUT mode
 	rpio.SpiEnd(rpio.Spi0)
+	// Release SPI resources (e.g., mapped memory)
 	rpio.Close()
 }
 
@@ -122,7 +149,10 @@ func initMax7219() {
 	//    writeMax7219(0x0f,0x01);// Display test register, test mode (light all leds)
 }
 
+// 'addr' represents the address offset of the register which will be set to 'value'
 func writeMax7219(addr byte, value byte) {
+	// The csPin (chip select) is set to LOW to direct the MAX7219 to accept data from the MOSI line.
+	// Setting it to HIGH at the end of the function directs the MAX7219 to ignore data on the MOSI line.
 	csPin.Low()
 	writeMax7219Byte(addr)
 	writeMax7219Byte(value)
@@ -140,11 +170,14 @@ func signalHandler(sigs chan os.Signal, stop chan interface{}) {
 
 	fmt.Println("\nExiting...\n")
 
-	for i := 1; i < COLS+1; i++ {
+	// Turn off all LEDs on the MAX7219
+	for i := 1; i < MATRIX_ROW+1; i++ {
 		writeMax7219(byte(i), 0x00)
 	}
 
+	// Reset the SPI0 pins back to INPUT mode
 	rpio.SpiEnd(rpio.Spi0)
+	// Release SPI resources (e.g., mapped memory)
 	rpio.Close()
 
 	os.Exit(0)

@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2021 Richard Youngkin. All rights reserved.
-// Use of this source code is governed by a MIT-style
+// Use of this source code is governed by the GPL 3.0
 // license that can be found in the LICENSE file.
 //
 // This program is designed to be used with a 74HC595 Shift Register and a common cathode
